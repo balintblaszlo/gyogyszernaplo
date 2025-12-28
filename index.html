@@ -236,7 +236,7 @@
                 <h4>Jogi Nyilatkozat</h4>
                 <p>Ez a szoftver <b>NEM orvostechnikai eszköz</b>. "Ahogy van" alapon, ingyenesen használható. A pontos adagolásért a felhasználó felel.</p>
             </div>
-            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">Verzió: 0.12</div>
+            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">Verzió: 0.13 (Javított)</div>
         </div>
     </div>
 
@@ -259,7 +259,7 @@
 </nav>
 
 <script>
-    // --- ADATMODELL V9.1 (Verzió: 0.11) ---
+    // --- ADATMODELL V9.2 (Verzió: 0.13) ---
     let appData = {
         patient: { name: "", taj: "", docName: "", docEmail: "", isChild: false },
         medications: [], // {id, name, dose, type, startDate, duration, times:[{t, type}], freqMode, freqDays:[], intervalDays, cycleStartDate}
@@ -268,7 +268,7 @@
     };
     
     let dailyState = { date: "", items: [] };
-    const STORAGE_KEY = 'med_diary_v9'; // Nem változtatunk, hogy a V9 felhasználók megmaradjanak
+    const STORAGE_KEY = 'med_diary_v9'; 
 
     function init() {
         // --- MIGRÁCIÓS LOGIKA (V8 -> V9) ---
@@ -298,7 +298,7 @@
                 const oldDaily = localStorage.getItem('med_daily_v8');
                 if(oldDaily) localStorage.setItem('med_daily_v9', oldDaily);
                 
-                alert("Az alkalmazás frissült v0.12-re! A korábbi adatai megmaradtak.");
+                alert("Az alkalmazás frissült v0.13-ra! A korábbi adatai megmaradtak.");
             } catch(e) { console.error("Migrációs hiba:", e); }
         } else if (stored) {
             // Normál betöltés
@@ -356,6 +356,9 @@
         // Hétfő=1 ... Vasárnap=0 beállítása
         const dayOfWeek = today.getDay(); // 0=Vas, 6=Szo
         const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+        
+        // --- JAVÍTOTT LISTA GENERÁLÁS (MEGŐRZI A MAI STÁTUSZOKAT) ---
+        const existingItems = dailyState.items || [];
         let items = [];
 
         appData.medications.forEach(med => {
@@ -409,21 +412,34 @@
                 }
 
                 if (shouldAdd) {
-                    items.push({
-                        uid: Math.random().toString(36).substr(2, 9),
-                        medId: med.id,
-                        name: med.name,
-                        dose: med.dose,
-                        type: med.type,
-                        courseInfo: med.type === 'acute' ? `${courseDay}. nap / ${med.duration}` : null,
-                        time: tObj.t,
-                        status: 'waiting'
-                    });
+                    // --- MÓDOSÍTÁS: Keressük meg, létezik-e már ez a feladat mára? ---
+                    // Ha a medId és az időpont egyezik, tartsuk meg az eredetit (a státuszával együtt!)
+                    const existing = existingItems.find(i => i.medId == med.id && i.time === tObj.t);
+                    
+                    if (existing) {
+                        items.push(existing); // Megtartjuk a régit (pipát)
+                    } else {
+                        // Ha nincs, újat hozunk létre
+                        items.push({
+                            uid: Math.random().toString(36).substr(2, 9),
+                            medId: med.id,
+                            name: med.name,
+                            dose: med.dose,
+                            type: med.type,
+                            courseInfo: med.type === 'acute' ? `${courseDay}. nap / ${med.duration}` : null,
+                            time: tObj.t,
+                            status: 'waiting'
+                        });
+                    }
                 }
             });
         });
 
-        items.sort((a,b) => a.time.localeCompare(b.time));
+        items.sort((a,b) => {
+            if (!a.time) return 1;
+            if (!b.time) return -1;
+            return a.time.localeCompare(b.time);
+        });
         dailyState = { date: dateStr, items: items };
         saveData();
     }
@@ -448,9 +464,6 @@
     function updateSelectedDays() {
         let arr = [];
         document.querySelectorAll('.week-day.checked').forEach(el => {
-            // A click handlerből a dayIdx-et nehéz kinyerni így, inkább dataset kellene, 
-            // de egyszerűsítve: a HTML sorrendből vagy onclick paraméterből.
-            // DOM alapú:
             const txt = el.innerText;
             if(txt==='H') arr.push(1); if(txt==='K') arr.push(2); if(txt==='Sze') arr.push(3);
             if(txt==='Cs') arr.push(4); if(txt==='P') arr.push(5); if(txt==='Szo') arr.push(6); if(txt==='V') arr.push(0);
@@ -460,46 +473,54 @@
 
     // --- BEÁLLÍTÁSOK ---
     function saveMedication() {
-        const id = document.getElementById('edit-id').value;
-        const name = document.getElementById('new-name').value;
-        const dose = document.getElementById('new-dose').value;
-        const freqMode = document.getElementById('freq-mode').value;
+        try {
+            const id = document.getElementById('edit-id').value;
+            const name = document.getElementById('new-name').value;
+            const dose = document.getElementById('new-dose').value;
+            const freqMode = document.getElementById('freq-mode').value;
+            
+            let times = [];
+            document.querySelectorAll('#time-container > div').forEach(row => {
+                const tVal = row.querySelector('.t-val').value;
+                const tType = row.querySelector('.t-type').value;
+                if(tVal) times.push({ t: tVal, type: tType });
+            });
+
+            if(!name || times.length === 0) return alert('Név és legalább egy érvényes időpont kötelező!');
+
+            let medObj = { id: id ? parseInt(id) : Date.now(), name, dose, times, type: currentType, freqMode };
+
+            if(currentType === 'acute') {
+                medObj.startDate = document.getElementById('new-start-date').value;
+                medObj.duration = document.getElementById('new-duration').value;
+            }
+
+            // Gyakoriság adatok
+            if (freqMode === 'weekly') {
+                updateSelectedDays();
+                medObj.freqDays = JSON.parse(document.getElementById('selected-days').value || "[]");
+                if(medObj.freqDays.length === 0) return alert('Válasszon legalább egy napot!');
+            } else if (freqMode === 'interval') {
+                medObj.intervalDays = parseInt(document.getElementById('freq-days').value);
+                medObj.cycleStartDate = document.getElementById('freq-start').value;
+                if(!medObj.cycleStartDate) return alert('Kezdő dátum kötelező!');
+            }
+
+            if(id) {
+                const idx = appData.medications.findIndex(m => m.id == id);
+                appData.medications[idx] = medObj;
+                // JAVÍTVA: Nem töröljük a várakozókat, mert a generateDailyTasks most már okosan összefésül
+            } else {
+                appData.medications.push(medObj);
+            }
+            
+            generateDailyTasks(dailyState.date);
+            saveData(); resetForm(); renderAll(); alert('Rögzítve!'); switchTab('tab-settings', document.querySelectorAll('.nav-item')[2]);
         
-        let times = [];
-        document.querySelectorAll('#time-container > div').forEach(row => {
-            times.push({ t: row.querySelector('.t-val').value, type: row.querySelector('.t-type').value });
-        });
-
-        if(!name || times.length === 0) return alert('Név és időpont kötelező!');
-
-        let medObj = { id: id ? parseInt(id) : Date.now(), name, dose, times, type: currentType, freqMode };
-
-        if(currentType === 'acute') {
-            medObj.startDate = document.getElementById('new-start-date').value;
-            medObj.duration = document.getElementById('new-duration').value;
+        } catch(err) {
+            alert("Hiba történt a mentéskor: " + err.message);
+            console.error(err);
         }
-
-        // Gyakoriság adatok
-        if (freqMode === 'weekly') {
-            updateSelectedDays();
-            medObj.freqDays = JSON.parse(document.getElementById('selected-days').value || "[]");
-            if(medObj.freqDays.length === 0) return alert('Válasszon legalább egy napot!');
-        } else if (freqMode === 'interval') {
-            medObj.intervalDays = parseInt(document.getElementById('freq-days').value);
-            medObj.cycleStartDate = document.getElementById('freq-start').value;
-            if(!medObj.cycleStartDate) return alert('Kezdő dátum kötelező!');
-        }
-
-        if(id) {
-            const idx = appData.medications.findIndex(m => m.id == id);
-            appData.medications[idx] = medObj;
-            dailyState.items = dailyState.items.filter(i => !(i.medId == id && i.status == 'waiting'));
-        } else {
-            appData.medications.push(medObj);
-        }
-        
-        generateDailyTasks(dailyState.date);
-        saveData(); resetForm(); renderAll(); alert('Rögzítve!'); switchTab('tab-settings', document.querySelectorAll('.nav-item')[2]);
     }
 
     function editMed(id) {
