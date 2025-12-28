@@ -193,6 +193,10 @@
         <div style="text-align:center; margin-top:40px; margin-bottom:20px;">
             <a href="#" onclick="hardReset()" style="color:#dc3545; font-size:0.9rem; text-decoration:underline; font-weight:bold;">⚠️ Adatok törlése (Minden visszaállítása)</a>
         </div>
+        
+        <div style="text-align:center; color:#ccc; font-size:0.7rem; margin-bottom:60px;">
+            v1.0 (Open Source | MIT License)
+        </div>
     </div>
 
 </div>
@@ -219,7 +223,7 @@
 </nav>
 
 <script>
-    // --- ADATMODELL V6 ---
+    // --- ADATMODELL V7 (MIT LICENSED) ---
     let appData = {
         patient: { name: "", taj: "", docName: "", docEmail: "" },
         medications: [],
@@ -229,7 +233,7 @@
     
     let dailyState = { date: "", items: [] };
 
-    const STORAGE_KEY = 'med_diary_v6';
+    const STORAGE_KEY = 'med_diary_v7';
 
     function init() {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -258,7 +262,7 @@
 
     function saveData() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-        localStorage.setItem('med_daily_v6', JSON.stringify(dailyState));
+        localStorage.setItem('med_daily_v7', JSON.stringify(dailyState));
         updateHeader();
     }
 
@@ -283,7 +287,7 @@
 
     function initDay() {
         const todayStr = new Date().toISOString().split('T')[0];
-        const storedDaily = localStorage.getItem('med_daily_v6');
+        const storedDaily = localStorage.getItem('med_daily_v7');
         if(storedDaily) { dailyState = JSON.parse(storedDaily); }
 
         if (dailyState.date !== todayStr) {
@@ -655,7 +659,7 @@
     window.hardReset = function() {
         if(confirm("FIGYELEM: Ez végleg törli az összes beállítást és naplót! Biztosan folytatja?")) {
             localStorage.removeItem(STORAGE_KEY);
-            localStorage.removeItem('med_daily_v6');
+            localStorage.removeItem('med_daily_v7');
             location.reload();
         }
     }
