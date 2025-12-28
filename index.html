@@ -259,7 +259,7 @@
             </div>
             
             <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">
-                Verzió: 0.17 <br>
+                Verzió: 0.18 (Szinkron Fix)<br>
                 Licenc: balintblaszlo 2025, MIT licensz
             </div>
         </div>
@@ -284,8 +284,8 @@
 </nav>
 
 <script>
-    // --- ADATMODELL V9.6 (Verzió: 0.17) ---
-    const APP_VERSION = '0.17';
+    // --- ADATMODELL V9.7 (Verzió: 0.18) ---
+    const APP_VERSION = '0.18';
     const STORAGE_KEY = 'med_diary_v9'; 
     
     let appData = {
@@ -442,28 +442,26 @@
                 }
 
                 if (shouldAdd) {
-                    // --- JAVÍTOTT SZINKRONIZÁCIÓS LOGIKA ---
-                    // 1. Megnézzük a napi állapotban (ha már volt ma)
+                    // --- SZINKRONIZÁCIÓ JAVÍTVA ---
                     let existing = existingItems.find(i => i.medId == med.id && i.time === tObj.t);
                     
-                    // 2. HA nincs vagy várakozik, de az ORVOSI NAPLÓBAN MA MÁR BENNE VAN -> Akkor állítsuk BEVÉVE státuszra!
+                    // Ellenőrizzük az előzményeket is, hátha már bevettük
                     if (!existing || existing.status === 'waiting') {
                         const inHistory = appData.history.some(h => 
                             h.date === dateStr && 
                             h.name === med.name && 
-                            h.time.startsWith(tObj.t) && // Óra:Perc egyezés
-                            h.status === 'Bevéve'
+                            h.status === 'Bevéve' &&
+                            (h.originalTime === tObj.t) // A pontos tervezett időt keressük
                         );
                         
                         if (inHistory) {
                             if (!existing) {
-                                // Létrehozzuk 'done' státusszal
                                 existing = {
                                     uid: Math.random().toString(36).substr(2, 9),
                                     medId: med.id, name: med.name, dose: med.dose, type: med.type,
                                     courseInfo: med.type === 'acute' ? `${courseDay}. nap / ${med.duration}` : null,
                                     time: tObj.t,
-                                    status: 'done' // <--- KIKÉNYSZERÍTETT SZINKRON
+                                    status: 'done'
                                 };
                             } else {
                                 existing.status = 'done';
@@ -659,7 +657,23 @@
         toggleFreqMode(); 
     }
     function deleteMed(id) { if(confirm('Biztosan törli?')) { appData.medications = appData.medications.filter(m => m.id != id); dailyState.items = dailyState.items.filter(i => i.medId != id); saveData(); renderAll(); } }
-    function takeMed(uid) { const item = dailyState.items.find(i => i.uid == uid); if(item) { item.status = 'done'; appData.history.unshift({ date: dailyState.date, time: new Date().toLocaleTimeString('hu-HU', {hour:'2-digit', minute:'2-digit'}), name: item.name, dose: item.dose, status: 'Bevéve' }); saveData(); renderAll(); } }
+    
+    function takeMed(uid) { 
+        const item = dailyState.items.find(i => i.uid == uid); 
+        if(item) { 
+            item.status = 'done'; 
+            appData.history.unshift({ 
+                date: dailyState.date, 
+                time: new Date().toLocaleTimeString('hu-HU', {hour:'2-digit', minute:'2-digit'}), 
+                originalTime: item.time, // Ezt keressük vissza szinkronizáláskor
+                name: item.name, 
+                dose: item.dose, 
+                status: 'Bevéve' 
+            }); 
+            saveData(); renderAll(); 
+        } 
+    }
+    
     function showSnooze(uid) { document.getElementById(`btn-group-${uid}`).innerHTML = `<div class="snooze-options"><button class="btn-snooze-opt" onclick="applySnooze('${uid}', 15)">+15p</button><button class="btn-snooze-opt" onclick="applySnooze('${uid}', 30)">+30p</button><button class="btn-snooze-opt" onclick="applySnooze('${uid}', 60)">+1ó</button><button class="btn-snooze-opt" style="background:#ddd" onclick="renderToday()">X</button></div>`; }
     function applySnooze(uid, mins) { const item = dailyState.items.find(i => i.uid == uid); if(item) { let [h, m] = item.time.split(':').map(Number); let d = new Date(); d.setHours(h, m + mins); let nh = String(d.getHours()).padStart(2,'0'); let nm = String(d.getMinutes()).padStart(2,'0'); item.time = `${nh}:${nm}`; saveData(); renderAll(); } }
     function renderAll() { renderToday(); renderSettingsList(); renderHistory(); renderDashboard(); }
