@@ -45,8 +45,9 @@
         .btn-edit { background: #6c757d; }
         .btn-delete { background: var(--danger); }
         
-        .btn-block { width: 100%; margin-top: 15px; padding: 15px; font-size: 1.1rem; background: var(--main-color); }
+        .btn-block { width: 100%; margin-top: 10px; padding: 15px; font-size: 1.1rem; background: var(--main-color); }
         .btn-outline { background: white; border: 2px solid var(--main-color); color: var(--main-color); }
+        .btn-email { background: #007bff; margin-top: 5px; }
 
         /* INPUTOK ÉS MAGYARÁZATOK */
         .form-group { margin-bottom: 20px; }
@@ -103,20 +104,25 @@
     <div id="tab-history" class="tab-content">
         <div class="card" style="border-left-color: var(--main-color);">
             <h3>👨‍⚕️ Orvosi Műszerfal</h3>
-            <p style="font-size:0.9rem; color:#666; margin-bottom:15px;">Mutassa meg ezt a képernyőt orvosának a vizitkor!</p>
-            
             <div id="dashboard-stats"></div>
         </div>
 
-        <h3 style="margin: 20px 5px 10px;">Részletes Napló</h3>
+        <h3 style="margin: 20px 5px 10px;">Napló Küldése</h3>
+        <div class="card" style="border-left: 5px solid #666;">
+            <p style="font-size:0.9rem; margin-top:0;">Küldje el adatait orvosának két lépésben:</p>
+            
+            <button onclick="exportData()" class="btn-block" style="background:#444">📥 1. Adatok letöltése</button>
+            <div class="help-text" style="text-align:center;">Lementi a fájlt a telefonjára.</div>
+            
+            <button onclick="prepareEmail()" class="btn-block btn-email">📧 2. Email megírása</button>
+            <div class="help-text" style="text-align:center;">Megnyitja a levelezőt. <b>Ne felejtse el csatolni a letöltött fájlt!</b></div>
+        </div>
+
+        <h3 style="margin: 20px 5px 10px;">Részletes Előzmények</h3>
         <table style="width:100%; font-size:0.85rem; border-collapse: collapse; background:white;">
             <thead style="background:#eee;"><tr><th style="padding:8px; text-align:left">Mikor</th><th style="padding:8px; text-align:left">Mit</th><th>Ok</th></tr></thead>
             <tbody id="history-table"></tbody>
         </table>
-        
-        <br>
-        <button onclick="exportData()" class="btn-block" style="background:#444">📥 Napló mentése és Küldése</button>
-        <div class="help-text" style="text-align:center; margin-top:5px;">Lementi a listát egy fájlba, amit emailben továbbíthat.</div>
     </div>
 
     <div id="tab-settings" class="tab-content">
@@ -126,20 +132,23 @@
             
             <div class="form-group">
                 <label>Beteg Neve</label>
-                <div class="help-text">Az Ön neve, hogy az orvos tudja, kié a napló.</div>
                 <input type="text" id="pat-name" placeholder="pl. Kovács János" onchange="saveSettings()">
             </div>
 
             <div class="form-group">
                 <label>TAJ Szám</label>
-                <div class="help-text">A leletek azonosításához szükséges (nem kötelező).</div>
                 <input type="text" id="pat-taj" placeholder="000-000-000" onchange="saveSettings()">
             </div>
             
             <div class="form-group">
                 <label>Háziorvos Neve</label>
-                <div class="help-text">Megjelenik a képernyő tetején.</div>
                 <input type="text" id="doc-name" placeholder="pl. Dr. Minta Éva" onchange="saveSettings()">
+            </div>
+            
+            <div class="form-group">
+                <label>Rendelő / Orvos Email címe</label>
+                <div class="help-text">Ide küldi majd a rendszer a naplót.</div>
+                <input type="email" id="doc-email" placeholder="orvos@pelda.hu" onchange="saveSettings()">
             </div>
         </div>
 
@@ -148,7 +157,6 @@
             <input type="hidden" id="edit-id"> 
             
             <label>Terápia típusa</label>
-            <div class="help-text">Állandó gyógyszer vagy átmeneti kúra?</div>
             <div class="type-selector">
                 <div class="type-option selected" id="opt-chronic" onclick="setMedType('chronic')">Állandó / Krónikus</div>
                 <div class="type-option" id="opt-acute" onclick="setMedType('acute')">Kúra / Antibiotikum</div>
@@ -156,28 +164,22 @@
 
             <div class="form-group">
                 <label>Gyógyszer neve</label>
-                <div class="help-text">Írja be pontosan, ahogy a dobozon szerepel.</div>
                 <input type="text" id="new-name" placeholder="pl. Augmentin vagy Metformin">
             </div>
             
             <div class="form-group">
                 <label>Dózis / Mennyiség</label>
-                <div class="help-text">Hány mg? Hány szemet kell bevenni?</div>
                 <input type="text" id="new-dose" placeholder="pl. 1000mg, 1 szem">
             </div>
 
             <div id="acute-settings" style="display:none; background:#fffbf2; padding:10px; border:1px dashed #fd7e14; border-radius:8px; margin-bottom:15px;">
                 <label style="color:#d63384">Kúra kezdete</label>
-                <div class="help-text">Melyik nap vette be az első szemet?</div>
                 <input type="date" id="new-start-date">
-                
                 <label style="color:#d63384">Kúra hossza (nap)</label>
-                <div class="help-text">Hány napig kell szedni? (pl. 7 nap)</div>
                 <input type="number" id="new-duration" value="7">
             </div>
             
             <label>Mikor kell bevenni?</label>
-            <div class="help-text">Adja meg az időpontokat. Többet is felvehet.</div>
             <div id="time-container"></div>
             <button class="btn-outline" style="padding:10px; width:100%; margin-top:5px;" onclick="addTimeField()">+ További időpont hozzáadása</button>
 
@@ -189,7 +191,7 @@
         <div id="settings-list"></div>
         
         <div style="text-align:center; margin-top:40px; margin-bottom:20px;">
-            <a href="#" onclick="hardReset()" style="color:#dc3545; font-size:0.8rem; text-decoration:underline;">Minden adat törlése (Vészhelyzeti Reset)</a>
+            <a href="#" onclick="hardReset()" style="color:#dc3545; font-size:0.9rem; text-decoration:underline; font-weight:bold;">⚠️ Adatok törlése (Minden visszaállítása)</a>
         </div>
     </div>
 
@@ -199,8 +201,7 @@
     <div class="modal-content">
         <h3>⚠️ Fontos Figyelmeztetés</h3>
         <p>Ez az alkalmazás <b>NEM orvostechnikai eszköz</b>. Kizárólag a betegek önmenedzselését segítő elektronikus napló.</p>
-        <p>A gyógyszerek pontos bevételéért a felelősség a felhasználót terheli. Kérdés esetén mindig konzultáljon kezelőorvosával!</p>
-        <p>Az adatok kizárólag az Ön telefonján tárolódnak. Senki más nem látja őket.</p>
+        <p>A gyógyszerek pontos bevételéért a felelősség a felhasználót terheli.</p>
         <button class="btn-block" onclick="acceptLegal()">Megértettem és Elfogadom</button>
     </div>
 </div>
@@ -218,56 +219,46 @@
 </nav>
 
 <script>
-    // --- ADATMODELL V5 ---
+    // --- ADATMODELL V6 ---
     let appData = {
-        patient: { name: "", taj: "", docName: "" },
-        medications: [], // {id, name, dose, type:'chronic'|'acute', startDate, duration, times:[{t, type}]}
-        history: [], // {date, time, name, status, originalTime}
+        patient: { name: "", taj: "", docName: "", docEmail: "" },
+        medications: [],
+        history: [],
         legalAccepted: false
     };
     
     let dailyState = { date: "", items: [] };
 
-    // --- RENDSZER INDÍTÁS ---
-    const STORAGE_KEY = 'med_diary_v5';
+    const STORAGE_KEY = 'med_diary_v6';
 
     function init() {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
             try {
                 const parsed = JSON.parse(stored);
-                // Összefésülés, ha új mezők lennének
                 appData = { ...appData, ...parsed };
-                // Patient objektum javítása ha hiányzik
-                if(!appData.patient) appData.patient = { name: "", taj: "", docName: "" };
+                if(!appData.patient) appData.patient = { name: "", taj: "", docName: "", docEmail: "" };
             } catch(e) { console.error("Data error", e); }
-        } else {
-            // Migráció régi verziókról (egyszerűsítve: csak töröljük a régit, hogy tiszta lappal induljon a V5 struktúra miatt)
-            // Vagy ha van V4, átmenthetnénk, de a struktúra változás (akut) miatt biztonságosabb a tiszta lap vagy csak a krónikusok átvétele.
-            // Most tiszta indítás a biztonság kedvéért.
         }
 
-        // Jogi nyilatkozat ellenőrzése
         if(appData.legalAccepted) {
             document.getElementById('legal-modal').style.display = 'none';
         }
 
-        // Header kitöltés
         updateHeader();
         
-        // Adatok betöltése inputokba
         document.getElementById('pat-name').value = appData.patient.name || "";
         document.getElementById('pat-taj').value = appData.patient.taj || "";
         document.getElementById('doc-name').value = appData.patient.docName || "";
+        document.getElementById('doc-email').value = appData.patient.docEmail || "";
 
-        // Napi lista generálás
         initDay();
         renderAll();
     }
 
     function saveData() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-        localStorage.setItem('med_daily_v5', JSON.stringify(dailyState));
+        localStorage.setItem('med_daily_v6', JSON.stringify(dailyState));
         updateHeader();
     }
 
@@ -286,45 +277,38 @@
         appData.patient.name = document.getElementById('pat-name').value;
         appData.patient.taj = document.getElementById('pat-taj').value;
         appData.patient.docName = document.getElementById('doc-name').value;
+        appData.patient.docEmail = document.getElementById('doc-email').value;
         saveData();
     }
 
-    // --- IDŐ ÉS NAPI LISTA LOGIKA ---
     function initDay() {
         const todayStr = new Date().toISOString().split('T')[0];
-        
-        // Napi állapot betöltése vagy generálása
-        const storedDaily = localStorage.getItem('med_daily_v5');
-        if(storedDaily) {
-            dailyState = JSON.parse(storedDaily);
-        }
+        const storedDaily = localStorage.getItem('med_daily_v6');
+        if(storedDaily) { dailyState = JSON.parse(storedDaily); }
 
         if (dailyState.date !== todayStr) {
             generateDailyTasks(todayStr);
         }
         
-        // Dátum kijelzése
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('today-header').innerText = new Date().toLocaleDateString('hu-HU', options);
     }
 
     function generateDailyTasks(dateStr) {
         const today = new Date(dateStr);
-        const dayOfWeek = today.getDay(); // 0=Vas
+        const dayOfWeek = today.getDay(); 
         const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
         let items = [];
 
         appData.medications.forEach(med => {
-            // 1. Ellenőrzés: Aktív-e a gyógyszer? (Kúra lejárt-e)
             let isCourseActive = true;
             let courseDay = 0;
 
             if (med.type === 'acute') {
                 const start = new Date(med.startDate);
                 const diffTime = Math.abs(today - start);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 mert az első nap az 1. nap
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
                 
-                // Ha a mai dátum a start előtt van, vagy a start+duration után
                 const endDate = new Date(start);
                 endDate.setDate(start.getDate() + (parseInt(med.duration)-1));
                 
@@ -337,7 +321,6 @@
 
             if (!isCourseActive) return;
 
-            // 2. Időpontok hozzáadása
             med.times.forEach(tObj => {
                 let shouldAdd = false;
                 if (tObj.type === 'all') shouldAdd = true;
@@ -359,9 +342,7 @@
             });
         });
 
-        // Idő szerinti rendezés
         items.sort((a,b) => a.time.localeCompare(b.time));
-        
         dailyState = { date: dateStr, items: items };
         saveData();
     }
@@ -371,9 +352,7 @@
 
     function setMedType(type) {
         currentType = type;
-        document.querySelectorAll('.type-option').forEach(el => {
-            el.classList.remove('selected', 'selected-acute');
-        });
+        document.querySelectorAll('.type-option').forEach(el => el.classList.remove('selected', 'selected-acute'));
         
         if(type === 'chronic') {
             document.getElementById('opt-chronic').classList.add('selected');
@@ -381,14 +360,13 @@
         } else {
             document.getElementById('opt-acute').classList.add('selected-acute');
             document.getElementById('acute-settings').style.display = 'block';
-            // Alapértelmezett mai dátum
             document.getElementById('new-start-date').value = new Date().toISOString().split('T')[0];
         }
     }
 
     function addTimeField(val="08:00", type="all") {
         const div = document.createElement('div');
-        div.className = 'type-selector'; // Újrahasznosítjuk a flex stílust
+        div.className = 'type-selector';
         div.style.marginBottom = "5px";
         div.innerHTML = `
             <input type="time" class="t-val" value="${val}">
@@ -407,7 +385,6 @@
         const name = document.getElementById('new-name').value;
         const dose = document.getElementById('new-dose').value;
         
-        // Időpontok
         let times = [];
         document.querySelectorAll('#time-container > div').forEach(row => {
             times.push({
@@ -432,13 +409,11 @@
         if(id) {
             const idx = appData.medications.findIndex(m => m.id == id);
             appData.medications[idx] = medObj;
-            // Mai lista frissítés: töröljük a várakozókat és újrageneráljuk
             dailyState.items = dailyState.items.filter(i => !(i.medId == id && i.status == 'waiting'));
-            // Hozzáadjuk az újat logika szerint (egyszerűsítve: reload)
             generateDailyTasks(dailyState.date); 
         } else {
             appData.medications.push(medObj);
-            generateDailyTasks(dailyState.date); // Frissítjük a mait
+            generateDailyTasks(dailyState.date);
         }
 
         saveData();
@@ -486,13 +461,12 @@
     function deleteMed(id) {
         if(confirm('Biztosan törli ezt a gyógyszert?')) {
             appData.medications = appData.medications.filter(m => m.id != id);
-            dailyState.items = dailyState.items.filter(i => i.medId != id); // Törlés a maiból is
+            dailyState.items = dailyState.items.filter(i => i.medId != id);
             saveData();
             renderAll();
         }
     }
 
-    // --- CSELEKVÉSEK ---
     function takeMed(uid) {
         const item = dailyState.items.find(i => i.uid == uid);
         if(item) {
@@ -512,8 +486,6 @@
     function snoozeMed(uid) {
         const item = dailyState.items.find(i => i.uid == uid);
         if(item) {
-            // +15 perc logika egyszerűsítve: csak a kijelzést toljuk
-            // Valójában a time stringet módosítjuk
             let [h, m] = item.time.split(':').map(Number);
             let d = new Date(); d.setHours(h, m + 15);
             let nh = String(d.getHours()).padStart(2,'0');
@@ -525,7 +497,7 @@
         }
     }
 
-    // --- MEGJELENÍTÉS ---
+    // --- MEGJELENÍTÉS ÉS EXPORT ---
     function renderAll() {
         renderToday();
         renderSettingsList();
@@ -613,30 +585,19 @@
     }
 
     function renderDashboard() {
-        // Egyszerű statisztika
         const total = appData.history.length;
-        // Az elmúlt 7 napban hány %?
-        // Itt most egy egyszerűsített demót mutatunk
-        const statsDiv = document.getElementById('dashboard-stats');
-        
-        let problemMeds = []; 
-        // Logika: ha lenne missed log, itt gyűjtenénk. Jelenleg csak a pozitív log van.
-        
-        statsDiv.innerHTML = `
+        document.getElementById('dashboard-stats').innerHTML = `
             <div class="stat-box">
                 <div>Bevett gyógyszerek<br><small>(Összesen)</small></div>
                 <div class="stat-num">${total}</div>
             </div>
-            
             <div class="alert-box" style="background:#eef4fb; border-color:#b8daff; color:#004085;">
                 <b>ℹ️ Tipp az Orvosnak:</b><br>
-                Ellenőrizze a lenti listában a bevételek rendszerességét. 
-                A kúra jellegű gyógyszerek narancssárgával vannak jelölve a betegnél.
+                A narancssárga hátterű gyógyszerek antibiotikum kúrát jeleznek.
             </div>
         `;
     }
 
-    // --- NAVIGÁCIÓ ---
     window.switchTab = function(tabId, navElem) {
         document.querySelectorAll('.tab-content').forEach(d => {
             d.style.display = 'none';
@@ -650,46 +611,58 @@
         window.scrollTo(0,0);
     }
 
-    // --- EXPORT ---
+    // --- EMAIL ÉS EXPORT ---
     window.exportData = function() {
-        // Okos fájlnév
         const name = (appData.patient.name || "Beteg").replace(/ /g, "_");
         const taj = (appData.patient.taj || "").replace(/[^0-9]/g, "");
         const date = new Date().toISOString().split('T')[0];
         const filename = `Naplo_${name}_TAJ${taj}_${date}.csv`;
 
-        let csv = "\uFEFFDatum,Ido,Gyogyszer,Statusz,BetegNeve,TAJ\n"; // BOM a magyar karakterekhez
+        let csv = "\uFEFFDatum,Ido,Gyogyszer,Statusz,BetegNeve,TAJ\n"; 
         appData.history.forEach(row => {
             csv += `${row.date},${row.time},${row.name},${row.status},${appData.patient.name},${appData.patient.taj}\n`;
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
-        if (navigator.msSaveBlob) { // IE 10+
-            navigator.msSaveBlob(blob, filename);
-        } else {
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", filename);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Emlékeztető
+        alert("A fájl letöltődött!\n\nMost nyomja meg a '2. Email megírása' gombot, és CSATOLJA a fájlt a levélhez!");
+    }
+
+    window.prepareEmail = function() {
+        const email = appData.patient.docEmail;
+        if(!email) {
+            alert("Kérem előbb adja meg az orvos email címét a Beállításokban!");
+            switchTab('tab-settings', document.querySelectorAll('.nav-item')[2]);
+            return;
         }
+
+        const name = appData.patient.name || "[Név]";
+        const taj = appData.patient.taj || "[TAJ]";
+        const subject = `Gyógyszernapló: ${name} (TAJ: ${taj})`;
+        const body = `Tisztelt Doktor Úr/Nő!%0D%0A%0D%0AMellékelten küldöm a gyógyszernaplómat CSV formátumban.%0D%0A%0D%0ABeteg: ${name}%0D%0ATAJ: ${taj}%0D%0A%0D%0AÜdvözlettel,%0D%0A${name}`;
+
+        window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
     }
 
     window.hardReset = function() {
-        if(confirm("FIGYELEM: Ez törli az összes beállítást és naplót!")) {
+        if(confirm("FIGYELEM: Ez végleg törli az összes beállítást és naplót! Biztosan folytatja?")) {
             localStorage.removeItem(STORAGE_KEY);
-            localStorage.removeItem('med_daily_v5');
+            localStorage.removeItem('med_daily_v6');
             location.reload();
         }
     }
 
-    // START
     if(document.getElementById('time-container').children.length === 0) addTimeField();
     init();
 
-    // Időzítő a frissítéshez (perc)
     setInterval(() => {
         initDay();
         renderToday();
