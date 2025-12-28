@@ -236,7 +236,7 @@
                 <h4>Jogi Nyilatkozat</h4>
                 <p>Ez a szoftver <b>NEM orvostechnikai eszköz</b>. "Ahogy van" alapon, ingyenesen használható. A pontos adagolásért a felhasználó felel.</p>
             </div>
-            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">Verzió: 0.13 (Javított)</div>
+            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">Verzió: 0.14 (Javított)</div>
         </div>
     </div>
 
@@ -259,22 +259,21 @@
 </nav>
 
 <script>
-    // --- ADATMODELL V9.2 (Verzió: 0.13) ---
+    // --- ADATMODELL V9.3 (Verzió: 0.14) ---
     let appData = {
         patient: { name: "", taj: "", docName: "", docEmail: "", isChild: false },
-        medications: [], // {id, name, dose, type, startDate, duration, times:[{t, type}], freqMode, freqDays:[], intervalDays, cycleStartDate}
+        medications: [], 
         history: [],
         legalAccepted: false
     };
     
     let dailyState = { date: "", items: [] };
     const STORAGE_KEY = 'med_diary_v9'; 
+    let currentType = 'chronic'; // ITT A JAVÍTÁS!
 
     function init() {
-        // --- MIGRÁCIÓS LOGIKA (V8 -> V9) ---
         const stored = localStorage.getItem(STORAGE_KEY);
         const oldV8 = localStorage.getItem('med_diary_v8');
-        
         let needMigration = !stored; 
         
         if (stored && oldV8) {
@@ -293,15 +292,12 @@
                 const parsedOld = JSON.parse(oldV8);
                 appData = { ...appData, ...parsedOld };
                 if(!appData.patient) appData.patient = { name: "", taj: "", docName: "", docEmail: "", isChild: false };
-                
                 saveData();
                 const oldDaily = localStorage.getItem('med_daily_v8');
                 if(oldDaily) localStorage.setItem('med_daily_v9', oldDaily);
-                
-                alert("Az alkalmazás frissült v0.13-ra! A korábbi adatai megmaradtak.");
+                alert("Az alkalmazás frissült v0.14-re! A korábbi adatai megmaradtak.");
             } catch(e) { console.error("Migrációs hiba:", e); }
         } else if (stored) {
-            // Normál betöltés
             try {
                 const parsed = JSON.parse(stored);
                 appData = { ...appData, ...parsed };
@@ -353,16 +349,12 @@
 
     function generateDailyTasks(dateStr) {
         const today = new Date(dateStr);
-        // Hétfő=1 ... Vasárnap=0 beállítása
         const dayOfWeek = today.getDay(); // 0=Vas, 6=Szo
         const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-        
-        // --- JAVÍTOTT LISTA GENERÁLÁS (MEGŐRZI A MAI STÁTUSZOKAT) ---
         const existingItems = dailyState.items || [];
         let items = [];
 
         appData.medications.forEach(med => {
-            // 1. Akut kúra ellenőrzés
             let isCourseActive = true;
             let courseDay = 0;
             if (med.type === 'acute') {
@@ -376,50 +368,39 @@
             }
             if (!isCourseActive) return;
 
-            // 2. Gyakoriság ellenőrzés (NAPI SZINT)
             let isDayActive = false;
             let freqMode = med.freqMode || 'standard';
 
             if (freqMode === 'weekly') {
-                // med.freqDays tömbben számok (0-6)
                 if (med.freqDays && med.freqDays.includes(dayOfWeek)) isDayActive = true;
             } else if (freqMode === 'interval') {
                 if (med.cycleStartDate) {
                     const cycleStart = new Date(med.cycleStartDate);
-                    // Napok száma start óta
                     const diffTime = today - cycleStart;
                     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                     if (diffDays >= 0 && diffDays % med.intervalDays === 0) isDayActive = true;
                 }
             } else {
-                // Standard mód: mindig aktív, majd az időpontoknál szűrünk
                 isDayActive = true;
             }
 
             if (!isDayActive) return;
 
-            // 3. Időpontok generálása
             med.times.forEach(tObj => {
                 let shouldAdd = false;
-                // Ha standard mód, akkor él a Weekday/Weekend szűrés
                 if (freqMode === 'standard') {
                     if (tObj.type === 'all') shouldAdd = true;
                     if (tObj.type === 'weekday' && !isWeekend) shouldAdd = true;
                     if (tObj.type === 'weekend' && isWeekend) shouldAdd = true;
                 } else {
-                    // Ha Heti vagy Ciklikus, akkor minden időpont játszik ezen a napon
                     shouldAdd = true;
                 }
 
                 if (shouldAdd) {
-                    // --- MÓDOSÍTÁS: Keressük meg, létezik-e már ez a feladat mára? ---
-                    // Ha a medId és az időpont egyezik, tartsuk meg az eredetit (a státuszával együtt!)
                     const existing = existingItems.find(i => i.medId == med.id && i.time === tObj.t);
-                    
                     if (existing) {
-                        items.push(existing); // Megtartjuk a régit (pipát)
+                        items.push(existing);
                     } else {
-                        // Ha nincs, újat hozunk létre
                         items.push({
                             uid: Math.random().toString(36).substr(2, 9),
                             medId: med.id,
@@ -444,13 +425,10 @@
         saveData();
     }
 
-    // --- GYAKORISÁG UI KEZELÉS ---
     function toggleFreqMode() {
         const mode = document.getElementById('freq-mode').value;
         document.getElementById('freq-weekly-panel').style.display = mode === 'weekly' ? 'block' : 'none';
         document.getElementById('freq-interval-panel').style.display = mode === 'interval' ? 'block' : 'none';
-        
-        // Időpont sorokban a típus elrejtése ha nem standard
         document.querySelectorAll('.t-type').forEach(sel => {
             sel.style.display = mode === 'standard' ? 'block' : 'none';
         });
@@ -471,7 +449,6 @@
         document.getElementById('selected-days').value = JSON.stringify(arr);
     }
 
-    // --- BEÁLLÍTÁSOK ---
     function saveMedication() {
         try {
             const id = document.getElementById('edit-id').value;
@@ -495,7 +472,6 @@
                 medObj.duration = document.getElementById('new-duration').value;
             }
 
-            // Gyakoriság adatok
             if (freqMode === 'weekly') {
                 updateSelectedDays();
                 medObj.freqDays = JSON.parse(document.getElementById('selected-days').value || "[]");
@@ -509,7 +485,6 @@
             if(id) {
                 const idx = appData.medications.findIndex(m => m.id == id);
                 appData.medications[idx] = medObj;
-                // JAVÍTVA: Nem töröljük a várakozókat, mert a generateDailyTasks most már okosan összefésül
             } else {
                 appData.medications.push(medObj);
             }
@@ -536,7 +511,6 @@
             document.getElementById('new-duration').value = med.duration;
         }
 
-        // Gyakoriság betöltése
         document.getElementById('freq-mode').value = med.freqMode || 'standard';
         toggleFreqMode();
         
@@ -557,8 +531,6 @@
 
         document.getElementById('time-container').innerHTML = '';
         med.times.forEach(t => addTimeField(t.t, t.type));
-        
-        // Ha nem standard, a timefield létrehozása után el kell rejteni a selecteket
         toggleFreqMode();
 
         document.getElementById('form-title').innerText = 'Szerkesztés';
@@ -584,7 +556,6 @@
         document.getElementById('cancel-btn').style.display = 'none';
     }
 
-    // --- EGYÉB FÜGGVÉNYEK (MEGEGYEZNEK A V8-AL) ---
     function setPatientMode(mode) {
         const isChild = (mode === 'child'); appData.patient.isChild = isChild;
         document.getElementById('opt-adult').className = isChild ? 'type-option' : 'type-option selected';
@@ -612,7 +583,7 @@
         div.className = 'type-selector'; div.style.marginBottom = "5px";
         div.innerHTML = `<input type="time" class="t-val" value="${val}"><select class="t-type"><option value="all" ${type=='all'?'selected':''}>Minden nap</option><option value="weekday" ${type=='weekday'?'selected':''}>Hétköznap</option><option value="weekend" ${type=='weekend'?'selected':''}>Hétvége</option></select><button class="btn-delete" style="flex:0.3; margin:0;" onclick="this.parentElement.remove()">X</button>`;
         document.getElementById('time-container').appendChild(div);
-        toggleFreqMode(); // Frissíteni a láthatóságot
+        toggleFreqMode(); 
     }
     function deleteMed(id) { if(confirm('Biztosan törli?')) { appData.medications = appData.medications.filter(m => m.id != id); dailyState.items = dailyState.items.filter(i => i.medId != id); saveData(); renderAll(); } }
     function takeMed(uid) { const item = dailyState.items.find(i => i.uid == uid); if(item) { item.status = 'done'; appData.history.unshift({ date: dailyState.date, time: new Date().toLocaleTimeString('hu-HU', {hour:'2-digit', minute:'2-digit'}), name: item.name, dose: item.dose, status: 'Bevéve' }); saveData(); renderAll(); } }
