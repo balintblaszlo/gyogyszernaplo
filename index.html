@@ -236,7 +236,7 @@
                 <h4>Jogi Nyilatkozat</h4>
                 <p>Ez a szoftver <b>NEM orvostechnikai eszköz</b>. "Ahogy van" alapon, ingyenesen használható. A pontos adagolásért a felhasználó felel.</p>
             </div>
-            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">Verzió: 0.11</div>
+            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">Verzió: 0.12</div>
         </div>
     </div>
 
@@ -298,7 +298,7 @@
                 const oldDaily = localStorage.getItem('med_daily_v8');
                 if(oldDaily) localStorage.setItem('med_daily_v9', oldDaily);
                 
-                alert("Az alkalmazás frissült v0.11-re! A korábbi adatai megmaradtak.");
+                alert("Az alkalmazás frissült v0.12-re! A korábbi adatai megmaradtak.");
             } catch(e) { console.error("Migrációs hiba:", e); }
         } else if (stored) {
             // Normál betöltés
