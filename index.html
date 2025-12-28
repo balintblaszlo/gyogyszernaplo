@@ -68,6 +68,12 @@
         .progress-bg { background: #eee; height: 10px; border-radius: 5px; overflow: hidden; }
         .progress-fill { height: 100%; transition: width 0.5s; }
 
+        /* INFO TAB STÍLUSOK */
+        .info-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .info-section h4 { margin-bottom: 10px; color: var(--main-color); }
+        .info-section p, .info-section li { font-size: 0.9rem; line-height: 1.5; color: #444; }
+        .alert-text { color: var(--danger); font-weight: bold; background: #fff0f0; padding: 10px; border-radius: 8px; border: 1px solid #ffcaca; }
+
         /* TABOK */
         .tab-content { display: none; animation: fadein 0.3s; }
         .tab-content.active { display: block; }
@@ -82,9 +88,6 @@
         /* JOGI MODAL */
         #legal-modal { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .modal-content { background: white; padding: 25px; border-radius: 10px; max-width: 500px; text-align: center; max-height: 80vh; overflow-y: auto; }
-        
-        .alert-text { color: var(--danger); font-weight: bold; background: #fff0f0; padding: 10px; border-radius: 8px; border: 1px solid #ffcaca; }
-        .info-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -214,29 +217,51 @@
     <!-- 4. INFORMÁCIÓ TAB -->
     <div id="tab-info" class="tab-content">
         <div class="card">
-            <h3>ℹ️ Információ</h3>
+            <h3>ℹ️ Információ és Segítség</h3>
+            
             <div class="info-section">
                 <div class="alert-text">
-                    ⚠️ FONTOS: Az adatok csak a telefonján vannak. Böngészési előzmények törlésével elveszhetnek. Töltsön le mentést rendszeresen!
+                    ⚠️ FONTOS: Az adatok elvesztésének elkerülése<br>
+                    <span style="font-weight:normal; font-size:0.85rem;">
+                        Ez az alkalmazás nem tárol adatokat az interneten, minden kizárólag az Ön telefonján van.
+                        Ha törli a böngészőjében az "Előzményeket és Webhelyadatokat" (vagy telefontisztító appot használ), 
+                        <b>a Gyógyszernapló adatai is törlődnek!</b><br>
+                        Javasoljuk, hogy hetente töltse le a naplót (Adatok letöltése gomb). A letöltött fájlok megmaradnak.
+                    </span>
                 </div>
                 
                 <!-- FRISSÍTÉS GOMB -->
                 <button onclick="forceReload()" class="btn-block btn-refresh">🔄 Applikáció Frissítése</button>
                 <div class="help-text" style="text-align:center;">Ha valami nem jelenik meg helyesen, nyomja meg ezt.</div>
             </div>
+
             <div class="info-section">
                 <h4>Hogyan működik?</h4>
                 <ul style="padding-left:20px;">
                     <li><b>Gyakoriság:</b> Beállíthat napi, heti (pl. Hétfő, Csütörtök) vagy ciklikus (minden 3. nap) szedést.</li>
-                    <li><b>Mai teendők:</b> Csak az aktuális napi gyógyszerek jelennek meg.</li>
-                    <li><b>Kúra:</b> Antibiotikumnál a rendszer visszaszámol.</li>
+                    <li><b>Mai teendők:</b> Csak az aktuális napi gyógyszerek jelennek meg. Itt pipálhatja ki, ha bevett valamit.</li>
+                    <li><b>Halasztás:</b> Ha nem tudja azonnal bevenni, választhat 15-30-60 perces emlékeztetőt.</li>
+                    <li><b>Elfelejtett gyógyszer:</b> Ha nem pipálja ki éjfélig, a rendszer "Kihagyva" státusszal rögzíti.</li>
+                    <li><b>Kúra / Antibiotikum:</b> A rendszer visszaszámol, és a kúra végén automatikusan leállítja a gyógyszert.</li>
                 </ul>
             </div>
+
+            <div class="info-section">
+                <h4>Adatvédelem és Biztonság</h4>
+                <p>Az alkalmazás egy zárt láncú rendszer. A rögzített nevek, TAJ számok és gyógyszeradatok nem kerülnek semmilyen központi szerverre. Az adatokhoz csak Ön fér hozzá, illetve akinek Ön elküldi (pl. háziorvosa).</p>
+            </div>
+
             <div class="info-section">
                 <h4>Jogi Nyilatkozat</h4>
-                <p>Ez a szoftver <b>NEM orvostechnikai eszköz</b>. "Ahogy van" alapon, ingyenesen használható. A pontos adagolásért a felhasználó felel.</p>
+                <p>Ez a szoftver egy ingyenes, lakossági segédeszköz, <b>NEM minősül orvostechnikai eszköznek</b>. A fejlesztők és a terjesztők a szoftvert ahogy van (szoftverfejlesztési kifejezéssel: "as is") alapon bocsátják rendelkezésre, mindennemű garanciavállalás nélkül, azaz reklamációt nem fogadnak és nem kezelnek.</p>
+                <p>A gyógyszerek pontos adagolásáért és bevételéért kizárólag a felhasználó felelős. Kétség esetén, vagy ha rosszul érzi magát, azonnal forduljon kezelőorvosához vagy hívja az orvosi ügyeletet!</p>
+                <p><b>Kapcsolattartás:</b> Kérdéseivel forduljon háziorvosához.</p>
             </div>
-            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">Verzió: 0.16.1 </div>
+            
+            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">
+                Verzió: 0.16.2 <br>
+                Licenc: balintblaszlo 2025, MIT licensz
+            </div>
         </div>
     </div>
 
@@ -259,8 +284,8 @@
 </nav>
 
 <script>
-    // --- ADATMODELL V9.5 (Verzió: 0.16) ---
-    const APP_VERSION = '0.16';
+    // --- ADATMODELL V9.5 (Verzió: 0.16.2) ---
+    const APP_VERSION = '0.16.2';
     const STORAGE_KEY = 'med_diary_v9'; 
     
     let appData = {
