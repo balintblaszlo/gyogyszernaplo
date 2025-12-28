@@ -236,7 +236,7 @@
                 <h4>Jogi Nyilatkozat</h4>
                 <p>Ez a szoftver <b>NEM orvostechnikai eszköz</b>. "Ahogy van" alapon, ingyenesen használható. A pontos adagolásért a felhasználó felel.</p>
             </div>
-            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">Verzió: 0.14 (Javított)</div>
+            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">Verzió: 0.16 (Helyi idő + Ikonok javítva)</div>
         </div>
     </div>
 
@@ -259,50 +259,58 @@
 </nav>
 
 <script>
-    // --- ADATMODELL V9.3 (Verzió: 0.14) ---
+    // --- ADATMODELL V9.5 (Verzió: 0.16) ---
+    const APP_VERSION = '0.16';
+    const STORAGE_KEY = 'med_diary_v9'; 
+    
     let appData = {
         patient: { name: "", taj: "", docName: "", docEmail: "", isChild: false },
         medications: [], 
         history: [],
-        legalAccepted: false
+        legalAccepted: false,
+        lastRunVersion: ""
     };
     
     let dailyState = { date: "", items: [] };
-    const STORAGE_KEY = 'med_diary_v9'; 
-    let currentType = 'chronic'; // ITT A JAVÍTÁS!
+    let currentType = 'chronic'; 
+
+    function getLocalTodayStr() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
 
     function init() {
         const stored = localStorage.getItem(STORAGE_KEY);
         const oldV8 = localStorage.getItem('med_diary_v8');
         let needMigration = !stored; 
         
-        if (stored && oldV8) {
-            try {
-                const v9Obj = JSON.parse(stored);
-                const v8Obj = JSON.parse(oldV8);
-                if ((!v9Obj.medications || v9Obj.medications.length === 0) && v8Obj.medications && v8Obj.medications.length > 0) {
-                    needMigration = true;
-                }
-            } catch(e) {}
-        }
-
-        if (needMigration && oldV8) {
-            try {
-                console.log("Migráció V8-ról V9-re...");
-                const parsedOld = JSON.parse(oldV8);
-                appData = { ...appData, ...parsedOld };
-                if(!appData.patient) appData.patient = { name: "", taj: "", docName: "", docEmail: "", isChild: false };
-                saveData();
-                const oldDaily = localStorage.getItem('med_daily_v8');
-                if(oldDaily) localStorage.setItem('med_daily_v9', oldDaily);
-                alert("Az alkalmazás frissült v0.14-re! A korábbi adatai megmaradtak.");
-            } catch(e) { console.error("Migrációs hiba:", e); }
-        } else if (stored) {
+        if (stored) {
             try {
                 const parsed = JSON.parse(stored);
                 appData = { ...appData, ...parsed };
                 if(!appData.patient) appData.patient = { name: "", taj: "", docName: "", docEmail: "", isChild: false };
+                
+                if (appData.lastRunVersion !== APP_VERSION) {
+                    console.log("Verziófrissítés: Napi lista újragenerálása...");
+                    dailyState = { date: "", items: [] }; 
+                    appData.lastRunVersion = APP_VERSION;
+                    saveData();
+                }
             } catch(e) { console.error(e); }
+        }
+
+        if (needMigration && oldV8) {
+            try {
+                console.log("Migráció V8-ról...");
+                const parsedOld = JSON.parse(oldV8);
+                appData = { ...appData, ...parsedOld };
+                appData.lastRunVersion = APP_VERSION;
+                if(!appData.patient) appData.patient = { name: "", taj: "", docName: "", docEmail: "", isChild: false };
+                saveData();
+            } catch(e) {}
         }
 
         if(appData.legalAccepted) { document.getElementById('legal-modal').style.display = 'none'; }
@@ -326,18 +334,27 @@
     function updateHeader() { document.getElementById('header-doc-name').innerText = "Háziorvos: " + (appData.patient.docName || "Nincs beállítva"); }
 
     function initDay() {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = getLocalTodayStr(); 
         const storedDaily = localStorage.getItem('med_daily_v9');
+        
         if(storedDaily) { 
             const prevDaily = JSON.parse(storedDaily);
-            if (prevDaily.date && prevDaily.date !== todayStr) { logMissedDoses(prevDaily); generateDailyTasks(todayStr); } 
-            else { dailyState = prevDaily; }
-        } else { generateDailyTasks(todayStr); }
+            if ((prevDaily.date && prevDaily.date !== todayStr) || !prevDaily.date) { 
+                if (prevDaily.date) logMissedDoses(prevDaily);
+                generateDailyTasks(todayStr); 
+            } else { 
+                dailyState = prevDaily; 
+            }
+        } else { 
+            generateDailyTasks(todayStr); 
+        }
+        
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('today-header').innerText = new Date().toLocaleDateString('hu-HU', options);
     }
 
     function logMissedDoses(prevDaily) {
+        if(!prevDaily.items) return;
         prevDaily.items.forEach(item => {
             if(item.status === 'waiting') {
                 appData.history.unshift({ date: prevDaily.date, time: item.time, name: item.name, dose: item.dose, status: 'Kihagyva' });
@@ -348,7 +365,9 @@
     }
 
     function generateDailyTasks(dateStr) {
-        const today = new Date(dateStr);
+        const parts = dateStr.split('-');
+        const today = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        
         const dayOfWeek = today.getDay(); // 0=Vas, 6=Szo
         const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
         const existingItems = dailyState.items || [];
@@ -359,11 +378,12 @@
             let courseDay = 0;
             if (med.type === 'acute') {
                 const start = new Date(med.startDate);
-                const diffTime = Math.abs(today - start);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                const endDate = new Date(start);
-                endDate.setDate(start.getDate() + (parseInt(med.duration)-1));
-                if (today < start || today > endDate) isCourseActive = false;
+                const sParts = med.startDate.split('-');
+                const localStart = new Date(parseInt(sParts[0]), parseInt(sParts[1])-1, parseInt(sParts[2]));
+                const diffTime = today - localStart;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                
+                if (diffDays < 1 || diffDays > parseInt(med.duration)) isCourseActive = false;
                 else courseDay = diffDays;
             }
             if (!isCourseActive) return;
@@ -375,7 +395,8 @@
                 if (med.freqDays && med.freqDays.includes(dayOfWeek)) isDayActive = true;
             } else if (freqMode === 'interval') {
                 if (med.cycleStartDate) {
-                    const cycleStart = new Date(med.cycleStartDate);
+                    const cParts = med.cycleStartDate.split('-');
+                    const cycleStart = new Date(parseInt(cParts[0]), parseInt(cParts[1])-1, parseInt(cParts[2]));
                     const diffTime = today - cycleStart;
                     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                     if (diffDays >= 0 && diffDays % med.intervalDays === 0) isDayActive = true;
@@ -608,10 +629,21 @@
         });
         document.getElementById('empty-msg').style.display = hasItems ? 'none' : 'block';
     }
+    
+    // --- ICON JAVÍTÁS ---
     function renderSettingsList() {
         const list = document.getElementById('settings-list'); list.innerHTML = '';
         appData.medications.forEach(m => {
-            let tags = m.times.map(t => `<span style="background:#eee; padding:2px 5px; border-radius:4px; font-size:0.8rem; margin-right:5px;">⏰ ${t.t}</span>`).join('');
+            // Ikonok visszaállítása a típus alapján
+            let tags = m.times.map(t => {
+                let icon = '⏰'; // Alapértelmezett (pl. ciklikusnál)
+                if (t.type === 'weekday') icon = '💼'; // Táska
+                if (t.type === 'weekend') icon = '🏖️'; // Napernyő
+                if (t.type === 'all' && m.freqMode === 'standard') icon = '🔄'; // Körforgás (Minden nap)
+                
+                return `<span style="background:#eee; padding:2px 5px; border-radius:4px; font-size:0.8rem; margin-right:5px;">${icon} ${t.t}</span>`;
+            }).join('');
+            
             let info = '';
             if (m.freqMode === 'weekly') {
                 let days = m.freqDays.map(d => ['V','H','K','Sze','Cs','P','Szo'][d]).join(', ');
@@ -623,6 +655,7 @@
             list.innerHTML += `<div class="card" style="padding:10px;"><div style="display:flex; justify-content:space-between;"><div>${typeLabel} ${m.name} (${m.dose})</div><div><button class="btn-edit btn-action" onclick="editMed(${m.id})">✏️</button><button class="btn-delete btn-action" onclick="deleteMed(${m.id})">🗑️</button></div></div>${info}<div style="margin-top:5px;">${tags}</div></div>`;
         });
     }
+    
     function renderHistory() {
         const tbody = document.getElementById('history-table'); tbody.innerHTML = '';
         appData.history.slice(0, 30).forEach(h => {
