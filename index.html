@@ -253,14 +253,14 @@
 
             <div class="info-section">
                 <h4>Jogi Nyilatkozat</h4>
-                <p>Ez a szoftver egy ingyenes, lakossági segédeszköz, <b>NEM minősül orvostechnikai eszköznek</b>. A fejlesztők és a terjesztők a szoftvert ahogy van (szoftverfejlesztési kifejezéssel: "as is") alapon bocsátják rendelkezésre, mindennemű garanciavállalás nélkül, azaz reklamációt nem fogadnak és nem kezelnek.</p>
+                <p>Ez a szoftver egy ingyenes, lakossági segédeszköz, <b>NEM minősül orvostechnikai eszköznek</b>. A fejlesztők és a terjesztők a szoftvert "ahogy van" (as is) alapon bocsátják rendelkezésre, mindennemű garanciavállalás nélkül, azaz reklamációt nem fogadnak és nem kezelnek.</p>
                 <p>A gyógyszerek pontos adagolásáért és bevételéért kizárólag a felhasználó felelős. Kétség esetén, vagy ha rosszul érzi magát, azonnal forduljon kezelőorvosához vagy hívja az orvosi ügyeletet!</p>
                 <p><b>Kapcsolattartás:</b> Kérdéseivel forduljon háziorvosához.</p>
             </div>
             
             <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">
-                Verzió: 0.16.2 <br>
-                Licensz: balintblaszlo 2025, MIT licensz
+                Verzió: 0.17 (Szinkron Javítva)<br>
+                Licenc: balintblaszlo 2025, MIT licensz
             </div>
         </div>
     </div>
@@ -284,8 +284,8 @@
 </nav>
 
 <script>
-    // --- ADATMODELL V9.5 (Verzió: 0.16.2) ---
-    const APP_VERSION = '0.16.2';
+    // --- ADATMODELL V9.6 (Verzió: 0.17) ---
+    const APP_VERSION = '0.17';
     const STORAGE_KEY = 'med_diary_v9'; 
     
     let appData = {
@@ -329,7 +329,6 @@
 
         if (needMigration && oldV8) {
             try {
-                console.log("Migráció V8-ról...");
                 const parsedOld = JSON.parse(oldV8);
                 appData = { ...appData, ...parsedOld };
                 appData.lastRunVersion = APP_VERSION;
@@ -443,7 +442,35 @@
                 }
 
                 if (shouldAdd) {
-                    const existing = existingItems.find(i => i.medId == med.id && i.time === tObj.t);
+                    // --- JAVÍTOTT SZINKRONIZÁCIÓS LOGIKA ---
+                    // 1. Megnézzük a napi állapotban (ha már volt ma)
+                    let existing = existingItems.find(i => i.medId == med.id && i.time === tObj.t);
+                    
+                    // 2. HA nincs vagy várakozik, de az ORVOSI NAPLÓBAN MA MÁR BENNE VAN -> Akkor állítsuk BEVÉVE státuszra!
+                    if (!existing || existing.status === 'waiting') {
+                        const inHistory = appData.history.some(h => 
+                            h.date === dateStr && 
+                            h.name === med.name && 
+                            h.time.startsWith(tObj.t) && // Óra:Perc egyezés
+                            h.status === 'Bevéve'
+                        );
+                        
+                        if (inHistory) {
+                            if (!existing) {
+                                // Létrehozzuk 'done' státusszal
+                                existing = {
+                                    uid: Math.random().toString(36).substr(2, 9),
+                                    medId: med.id, name: med.name, dose: med.dose, type: med.type,
+                                    courseInfo: med.type === 'acute' ? `${courseDay}. nap / ${med.duration}` : null,
+                                    time: tObj.t,
+                                    status: 'done' // <--- KIKÉNYSZERÍTETT SZINKRON
+                                };
+                            } else {
+                                existing.status = 'done';
+                            }
+                        }
+                    }
+
                     if (existing) {
                         items.push(existing);
                     } else {
