@@ -3,667 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gyógyszernapló</title>
+    <title>Családi Napló</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
     <style>
-        :root { --main-color: #0056b3; --accent: #004494; --success: #28a745; --warning: #ffc107; --danger: #dc3545; --bg: #f4f7f6; --text-muted: #6c757d; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: var(--bg); color: #333; -webkit-user-select: none; padding-bottom: 100px; }
+        :root { --main: #4a90e2; --accent: #50e3c2; --bg: #f5f7fa; --danger: #ff6b6b; --warn: #f8e71c; --text: #333; --grey: #b0b0b0; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: var(--bg); color: var(--text); padding-bottom: 80px; user-select: none; }
         
-        /* FEJLÉC */
-        header { background: var(--main-color); color: white; padding: 15px; padding-bottom: 20px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); position: sticky; top:0; z-index:100; }
-        h1 { margin: 0; font-size: 1.4rem; font-weight: 600; }
-        .doc-name { font-size: 0.9rem; opacity: 0.9; margin-top: 5px; font-weight: normal; }
+        /* LOGIN */
+        #login-screen { position: fixed; inset: 0; background: var(--main); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
+        .login-box { background: white; padding: 20px; border-radius: 10px; width: 85%; max-width: 320px; text-align: center; color: #333; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .login-box input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
         
-        /* KÁRTYÁK */
-        .container { padding: 12px; max-width: 600px; margin: 0 auto; }
-        .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); border-left: 6px solid #ccc; position: relative; }
-        
-        /* ÁLLAPOTOK */
-        .status-waiting { border-left-color: var(--warning); }
-        .status-due { border-left-color: var(--danger); animation: pulse 2s infinite; }
-        .status-done { border-left-color: var(--success); opacity: 0.6; background: #f9fff9; }
-        .type-acute { border: 2px solid #ffeeba; border-left: 6px solid #fd7e14 !important; background: #fffbf2; }
-        
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
-
-        .med-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .med-name { font-size: 1.2rem; font-weight: bold; color: #222; }
-        .med-time { font-size: 1.5rem; color: var(--main-color); font-weight: bold; white-space: nowrap; margin-left: 10px; }
-        .course-info { font-size: 0.85rem; color: #d63384; font-weight: bold; margin-top: 5px; }
-
-        /* GOMBOK */
-        .btn-group { display: flex; gap: 10px; }
-        button { flex: 1; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: center; }
-        button:active { transform: scale(0.97); }
-        .btn-take { background: var(--success); box-shadow: 0 4px 6px rgba(40, 167, 69, 0.2); }
-        .btn-snooze { background: var(--warning); color: #333; flex: 0.6; }
-        .btn-block { width: 100%; margin-top: 10px; padding: 15px; font-size: 1.1rem; background: var(--main-color); }
-        .btn-outline { background: white; border: 2px solid var(--main-color); color: var(--main-color); }
-        .btn-email { background: #007bff; margin-top: 5px; }
-        .btn-refresh { background: #dc3545; color: white; margin-top: 10px; }
-        
-        .snooze-options { display: flex; gap: 5px; animation: fadein 0.2s; }
-        .btn-snooze-opt { background: #ffeeba; color: #333; font-size: 0.9rem; padding: 10px; border: 1px solid #ffc107; }
-
-        /* INPUTOK */
-        .form-group { margin-bottom: 20px; }
-        label { font-size: 1rem; font-weight: bold; color: #333; display: block; margin-bottom: 6px; }
-        .help-text { font-size: 0.85rem; color: var(--text-muted); font-style: italic; margin-bottom: 8px; display: block; line-height: 1.3; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; background: white; box-sizing: border-box; }
-        
-        /* MÓDVÁLASZTÓK */
-        .type-selector { display: flex; gap: 10px; margin-bottom: 10px; }
-        .type-option { flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 8px; text-align: center; cursor: pointer; font-weight: bold; color: #666; }
-        .type-option.selected { border-color: var(--main-color); background: #eef4fb; color: var(--main-color); }
-        .type-option.selected-acute { border-color: #fd7e14; background: #fff5eb; color: #fd7e14; }
-
-        /* GYAKORISÁG OPCIÓK */
-        .freq-options { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 15px; }
-        .week-grid { display: flex; justify-content: space-between; gap: 5px; }
-        .week-day { flex: 1; text-align: center; padding: 8px 2px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; background: white; font-size: 0.9rem; }
-        .week-day.checked { background: var(--main-color); color: white; border-color: var(--main-color); }
-
-        /* STATISZTIKA PROGESS BAR */
-        .stat-row { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .stat-header { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; }
-        /* Többszínű sáv a V0.20-hoz */
-        .progress-bg { background: #eee; height: 12px; border-radius: 6px; overflow: hidden; display:flex; }
-        .bar-segment { height: 100%; }
-        .stat-details { font-size: 0.8rem; color: #666; margin-top: 3px; }
-
-        /* INFO TAB STÍLUSOK */
-        .info-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
-        .info-section h4 { margin-bottom: 10px; color: var(--main-color); }
-        .info-section p, .info-section li { font-size: 0.9rem; line-height: 1.5; color: #444; }
-        .alert-text { color: var(--danger); font-weight: bold; background: #fff0f0; padding: 10px; border-radius: 8px; border: 1px solid #ffcaca; }
+        /* HEADER */
+        header { background: white; padding: 10px 15px; position: sticky; top:0; z-index:100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; flex-direction: column; }
+        h1 { margin: 0; font-size: 1.2rem; color: var(--main); line-height: 1.2; }
+        .fam-code-display { font-size: 0.75rem; color: #888; margin-top: 2px; }
+        .fam-code-display strong { color: var(--main); }
+        .user-badge { background: var(--main); color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
 
         /* TABOK */
+        .container { padding: 15px; max-width: 600px; margin: 0 auto; }
         .tab-content { display: none; animation: fadein 0.3s; }
         .tab-content.active { display: block; }
-        @keyframes fadein { from { opacity:0; } to { opacity:1; } }
 
-        /* MENÜ */
-        nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #ddd; display: flex; height: 75px; z-index: 9999; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
-        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #888; font-size: 0.75rem; cursor: pointer; }
-        .nav-item.active { color: var(--main-color); font-weight: bold; background: #f0f7ff; }
-        .icon { font-size: 1.6rem; margin-bottom: 4px; }
+        /* DÁTUM NAVIGÁCIÓ */
+        .date-nav { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 15px; color: #666; }
+        .nav-arrow { background: none; border: 1px solid #ddd; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--main); font-weight: bold; padding: 0; }
+
+        /* KÁRTYÁK */
+        .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); border-left: 5px solid #ccc; position: relative; }
+        .status-todo { border-left-color: var(--warn); }
+        .status-done { border-left-color: var(--accent); background: #f0fcf9; opacity: 0.8; }
+        .status-planned { border-left-color: var(--main); }
+        .status-skipped { border-left-color: var(--grey); background: #f9f9f9; opacity: 0.6; filter: grayscale(100%); }
+
+        .task-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .task-cat { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #999; font-weight: bold; margin-bottom: 2px; }
+        .task-name { font-size: 1.1rem; font-weight: 700; color: #2c3e50; }
+        .task-detail { font-size: 0.85rem; color: #666; margin-top: 4px; font-style: italic; }
         
-        /* JOGI MODAL */
-        #legal-modal { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .modal-content { background: white; padding: 25px; border-radius: 10px; max-width: 500px; text-align: center; max-height: 80vh; overflow-y: auto; }
+        /* UI ELEMEK */
+        .plan-info { background: #eef6ff; color: var(--main); padding: 5px 10px; border-radius: 5px; font-size: 0.85rem; margin-top: 10px; display: inline-block; border: 1px solid #cfe2ff; }
+        .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+        button { border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1; font-size: 0.9rem; transition: 0.2s; color: white; }
+        button:active { transform: scale(0.98); }
+        .btn-done { background: var(--accent); color: #00796b; flex: 2; }
+        .btn-plan { background: #ddd; color: #555; flex: 1; }
+        .btn-skip { background: #fff; border: 1px solid #ddd; color: #aaa; flex: 0.5; font-size: 1.2rem; padding: 0; display: flex; align-items: center; justify-content: center;}
+        .btn-primary { background: var(--main); width: 100%; }
+        .btn-danger { background: var(--danger); }
+        
+        select, input[type="number"], input[type="text"] { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; background: white; }
+        
+        .week-selector { display: flex; justify-content: space-between; gap: 4px; margin-bottom: 15px; }
+        .day-btn { padding: 8px 0; flex: 1; text-align: center; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; color: #333; }
+        .day-btn.selected { background: var(--main); color: white; border-color: var(--main); }
+
+        /* INFO TAB STYLES */
+        .info-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .info-section h4 { margin-bottom: 10px; color: var(--main); }
+        .info-section p, .info-section li { font-size: 0.9rem; line-height: 1.5; color: #444; }
+        .alert-text { color: var(--main); font-weight: bold; background: #eef6ff; padding: 10px; border-radius: 8px; border: 1px solid #cfe2ff; }
+
+        /* NAVBAR */
+        nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; height: 70px; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #aaa; font-size: 0.75rem; }
+        .nav-item.active { color: var(--main); font-weight: bold; }
+        .nav-icon { font-size: 1.5rem; margin-bottom: 4px; }
+        .stat-bar { height: 20px; background: #eee; border-radius: 10px; overflow: hidden; margin: 20px 0; display: flex; }
+        .stat-fill { height: 100%; background: var(--accent); transition: width 0.5s; }
+        .chip-container { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; margin-bottom: 15px; }
+        .chip { background: #eee; padding: 6px 12px; border-radius: 15px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .chip-del { font-size: 0.8rem; opacity: 0.6; padding: 0 4px; }
+
+        @keyframes fadein { from { opacity:0; transform: translateY(5px); } to { opacity:1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-<header>
-    <h1>Gyógyszernapló</h1>
-    <div class="doc-name" id="header-doc-name">Háziorvos: Nincs beállítva</div>
-</header>
-
-<div class="container">
-    
-    <!-- 1. MAI TEENDŐK -->
-    <div id="tab-today" class="tab-content active">
-        <div id="today-header" style="text-align:center; margin-bottom:15px; font-size:0.95rem; color:#666; font-weight:bold;"></div>
-        <div id="today-list"></div>
-        <div style="text-align: center; margin-top: 50px; color: #888;" id="empty-msg">
-            <div style="font-size: 4rem; margin-bottom: 10px;">✅</div>
-            <div>Mára nincs (több) teendő.</div>
-        </div>
+<div id="login-screen">
+    <div class="login-box">
+        <h2 style="color:var(--main); margin-top:0;">🏠 Családi Napló</h2>
+        <input type="text" id="family-code" placeholder="Család Kódja (pl. Kovacsék)">
+        <input type="text" id="user-name" placeholder="Te Neved (pl. Apa)">
+        <button class="btn-primary" onclick="login()">Belépés</button>
     </div>
+</div>
 
-    <!-- 2. ORVOSI NAPLÓ -->
-    <div id="tab-history" class="tab-content">
-        <div class="card" style="border-left-color: var(--main-color);">
-            <h3>👨‍⚕️ Terápia Elemzés (30 nap)</h3>
-            <p style="font-size:0.8rem; color:#666; margin-top:-10px;">Időbeli pontosság és adherencia</p>
-            <div id="dashboard-stats"></div>
+<div id="app" style="display:none;">
+    <header>
+        <div class="header-left">
+            <h1>Családi Napló</h1>
+            <div class="fam-code-display">Kód: <strong id="display-fam-id"></strong></div>
         </div>
+        <div class="user-badge" id="display-user"></div>
+    </header>
 
-        <h3 style="margin: 20px 5px 10px;">Napló Küldése</h3>
-        <div class="card" style="border-left: 5px solid #666;">
-            <p style="font-size:0.9rem; margin-top:0;">Küldje el adatait orvosának két lépésben:</p>
-            <button onclick="exportData()" class="btn-block" style="background:#444">📥 1. Adatok letöltése</button>
-            <div class="help-text" style="text-align:center;">Mentés Excel (CSV) fájlba.</div>
-            <button onclick="prepareEmail()" class="btn-block btn-email">📧 2. Email megírása</button>
-            <div class="help-text" style="text-align:center;"><b>Ne felejtse el csatolni a fájlt!</b></div>
-        </div>
-
-        <h3 style="margin: 20px 5px 10px;">Részletes Előzmények</h3>
-        <table style="width:100%; font-size:0.85rem; border-collapse: collapse; background:white;">
-            <thead style="background:#eee;"><tr><th style="padding:8px; text-align:left">Mikor</th><th style="padding:8px; text-align:left">Mit</th><th>Eltérés</th></tr></thead>
-            <tbody id="history-table"></tbody>
-        </table>
-    </div>
-
-    <!-- 3. BEÁLLÍTÁSOK -->
-    <div id="tab-settings" class="tab-content">
-        <div class="card">
-            <h3>🪪 Adatok</h3>
-            <div class="type-selector">
-                <div class="type-option selected" id="opt-adult" onclick="setPatientMode('adult')">Saját magam</div>
-                <div class="type-option" id="opt-child" onclick="setPatientMode('child')">Gyermekem</div>
-            </div>
-            <div class="form-group"><label id="lbl-pat-name">Beteg Neve</label><input type="text" id="pat-name" placeholder="pl. Kovács János" onchange="saveSettings()"></div>
-            <div class="form-group"><label>TAJ Szám</label><input type="text" id="pat-taj" placeholder="000-000-000" onchange="saveSettings()"></div>
-            <div class="form-group"><label>Háziorvos Neve</label><input type="text" id="doc-name" placeholder="pl. Dr. Minta Éva" onchange="saveSettings()"></div>
-            <div class="form-group"><label>Rendelő Email címe</label><input type="email" id="doc-email" placeholder="orvos@pelda.hu" onchange="saveSettings()"></div>
-        </div>
-
-        <div class="card" style="border-left: 5px solid var(--success);">
-            <h3 style="margin-top:0" id="form-title">💊 Új gyógyszer felvétele</h3>
-            <input type="hidden" id="edit-id"> 
-            
-            <label>Terápia típusa</label>
-            <div class="type-selector">
-                <div class="type-option selected" id="opt-chronic" onclick="setMedType('chronic')">Állandó / Krónikus</div>
-                <div class="type-option" id="opt-acute" onclick="setMedType('acute')">Kúra / Antibiotikum</div>
+    <div class="container">
+        <div id="tab-today" class="tab-content active">
+            <div class="date-nav">
+                <button class="nav-arrow" onclick="changeDay(-1)">❮</button>
+                <div id="today-date" style="font-weight:bold; width:180px; text-align:center;"></div>
+                <button class="nav-arrow" onclick="changeDay(1)">❯</button>
             </div>
             
-            <div class="form-group"><label>Gyógyszer neve</label><input type="text" id="new-name" placeholder="pl. D-Vitamin"></div>
-            <div class="form-group"><label>Dózis / Mennyiség</label><input type="text" id="new-dose" placeholder="pl. 1 szem"></div>
+            <div class="stat-bar">
+                <div id="daily-progress" class="stat-fill" style="width: 0%"></div>
+            </div>
             
-            <div id="acute-settings" style="display:none; background:#fffbf2; padding:10px; border:1px dashed #fd7e14; border-radius:8px; margin-bottom:15px;">
-                <label style="color:#d63384">Kúra kezdete</label><input type="date" id="new-start-date">
-                <label style="color:#d63384">Kúra hossza (nap)</label><input type="number" id="new-duration" value="7">
+            <div id="task-list"></div>
+            
+            <div id="empty-msg" style="text-align:center; color:#aaa; margin-top:50px; display:none;">
+                <h2>☀️</h2>
+                <p>Mára minden kész!</p>
             </div>
+            
+            <button onclick="checkAndGenerateDaily(true)" style="margin-top:30px; background:none; color:#aaa; font-size:0.8rem; width:100%;">🔄 Szinkronizálás (Kényszerített)</button>
+        </div>
 
-            <label>Szedés Gyakorisága</label>
-            <select id="freq-mode" onchange="toggleFreqMode()" style="margin-bottom:10px;">
-                <option value="standard">Normál (Naponta / Hétköznap / Hétvége)</option>
-                <option value="weekly">Heti meghatározott napokon (pl. H, Sze)</option>
-                <option value="interval">Ciklikusan (Minden X. napon)</option>
-            </select>
-
-            <!-- Heti beállítás -->
-            <div id="freq-weekly-panel" class="freq-options" style="display:none;">
-                <div class="help-text">Jelölje be a napokat:</div>
-                <div class="week-grid">
-                    <div class="week-day" onclick="toggleDay(this, 1)">H</div>
-                    <div class="week-day" onclick="toggleDay(this, 2)">K</div>
-                    <div class="week-day" onclick="toggleDay(this, 3)">Sze</div>
-                    <div class="week-day" onclick="toggleDay(this, 4)">Cs</div>
-                    <div class="week-day" onclick="toggleDay(this, 5)">P</div>
-                    <div class="week-day" onclick="toggleDay(this, 6)">Szo</div>
-                    <div class="week-day" onclick="toggleDay(this, 0)">V</div>
-                </div>
-                <input type="hidden" id="selected-days" value="">
-            </div>
-
-            <!-- Ciklikus beállítás -->
-            <div id="freq-interval-panel" class="freq-options" style="display:none;">
-                <div class="form-group">
-                    <label>Hány naponta?</label>
-                    <input type="number" id="freq-days" value="2" placeholder="pl. 2">
-                </div>
-                <div class="form-group">
-                    <label>Kezdés / Utolsó bevétel dátuma</label>
-                    <div class="help-text">Ehhez igazítjuk a ciklust.</div>
-                    <input type="date" id="freq-start">
+        <div id="tab-summary" class="tab-content">
+            <div class="card">
+                <h3>📊 Statisztika</h3>
+                <div style="display:flex; justify-content:space-around; text-align:center; margin: 20px 0;">
+                    <div><div style="font-size:1.5rem; font-weight:bold; color:var(--main);" id="stat-total">0</div><div>Feladat</div></div>
+                    <div><div style="font-size:1.5rem; font-weight:bold; color:var(--accent);" id="stat-done">0</div><div>Kész</div></div>
                 </div>
             </div>
-            
-            <label>Időpontok (Óra:Perc)</label>
-            <div id="time-container"></div>
-            <button class="btn-outline" style="padding:10px; width:100%; margin-top:5px;" onclick="addTimeField()">+ Időpont hozzáadása</button>
-
-            <button class="btn-block" id="save-btn" onclick="saveMedication()">Hozzáadás</button>
-            <button id="cancel-btn" class="btn-block" style="background:#6c757d; display:none;" onclick="resetForm()">Mégsem</button>
+            <h3>Legutóbbi aktivitások</h3>
+            <div id="history-list"></div>
         </div>
-        
-        <h3 style="margin: 20px 10px 10px;">Mentett gyógyszerek</h3>
-        <div id="settings-list"></div>
-        <div style="text-align:center; margin-top:40px; margin-bottom:20px;">
-            <a href="#" onclick="hardReset()" style="color:#dc3545; font-size:0.9rem; text-decoration:underline; font-weight:bold;">⚠️ Adatok törlése (Reset)</a>
-        </div>
-    </div>
 
-    <!-- 4. INFORMÁCIÓ TAB -->
-    <div id="tab-info" class="tab-content">
-        <div class="card">
-            <h3>ℹ️ Információ és Segítség</h3>
-            
-            <div class="info-section">
-                <div class="alert-text">
-                    ⚠️ FONTOS: Az adatok elvesztésének elkerülése<br>
-                    <span style="font-weight:normal; font-size:0.85rem;">
-                        Ez az alkalmazás nem tárol adatokat az interneten, minden kizárólag az Ön telefonján van.
-                        Ha törli a böngészőjében az "Előzményeket és Webhelyadatokat" (vagy telefontisztító appot használ), 
-                        <b>a Gyógyszernapló adatai is törlődnek!</b><br>
-                        Javasoljuk, hogy hetente töltse le a naplót (Adatok letöltése gomb). A letöltött fájlok megmaradnak.
-                    </span>
+        <div id="tab-settings" class="tab-content">
+            <div class="card">
+                <h3 style="margin-top:0;">➕ Új feladat definiálása</h3>
+                
+                <label>Feladat Neve</label>
+                <input type="text" id="new-name" placeholder="pl. Gázóra diktálás">
+                <label>Kategória</label>
+                <input type="text" id="new-cat" placeholder="pl. Kert, Hivatal..." oninput="filterCats()">
+                <div id="cat-chips" class="chip-container"></div>
+
+                <label>Gyakoriság</label>
+                <select id="freq-type" onchange="renderFreqOptions()">
+                    <option value="every_day">Minden nap</option>
+                    <option value="weekly_days">Heti konkrét napok</option>
+                    <option value="interval_week">Ciklikus (Minden X. héten)</option>
+                    <option value="monthly_fix">Havi fix napon</option>
+                    <option value="interval_month">Ciklikus (Minden X. hónapban)</option>
+                    <option value="monthly_pattern">Havi minta (pl. Első Hétfő)</option>
+                </select>
+
+                <div id="opt-weekly-days" style="display:none;">
+                    <div class="week-selector">
+                        <div class="day-btn" onclick="toggleDay(this)">H</div><div class="day-btn" onclick="toggleDay(this)">K</div><div class="day-btn" onclick="toggleDay(this)">Sz</div>
+                        <div class="day-btn" onclick="toggleDay(this)">Cs</div><div class="day-btn" onclick="toggleDay(this)">P</div><div class="day-btn" onclick="toggleDay(this)">Sz</div><div class="day-btn" onclick="toggleDay(this)">V</div>
+                    </div>
+                </div>
+                <div id="opt-interval-week" style="display:none;"><label>Minden X. héten:</label><input type="number" id="interval-week-num" value="2" min="1"></div>
+                <div id="opt-monthly-fix" style="display:none;"><label>Hányadikán:</label><input type="number" id="month-day-fix" min="1" max="31" value="10"></div>
+                <div id="opt-interval-month" style="display:none;"><label>Minden X. hónapban:</label><input type="number" id="interval-month-num" value="3" min="1"></div>
+                <div id="opt-monthly-pattern" style="display:none;">
+                     <select id="month-pos-num"><option value="1">Első</option><option value="2">Második</option><option value="3">Harmadik</option><option value="4">Negyedik</option><option value="-1">Utolsó</option></select>
+                     <select id="month-pos-day"><option value="1">Hétfő</option><option value="2">Kedd</option><option value="3">Szerda</option><option value="4">Csütörtök</option><option value="5">Péntek</option><option value="6">Szombat</option><option value="0">Vasárnap</option></select>
+                </div>
+
+                <button class="btn-primary" onclick="addNewTask()">Hozzáadás</button>
+            </div>
+            <h3>Mentett Feladatok</h3>
+            <div id="manage-list"></div>
+            <div style="margin-top: 40px; padding-top: 20px; border-top:1px solid #ddd;">
+                <button class="btn-danger" onclick="logout()">🚪 Kilépés</button>
+            </div>
+        </div>
+
+        <div id="tab-info" class="tab-content">
+            <div class="card">
+                <h3>ℹ️ Információ</h3>
+                
+                <div class="info-section">
+                    <div class="alert-text">
+                        🛠️ Verzió: 2.1 (Gyorsítótárazott)<br>
+                        <span style="font-weight:normal; font-size:0.85rem;">
+                            Ez az alkalmazás a telefonján is tárolja az adatokat, így gyorsabban működik és kevesebb adatforgalmat generál. A szinkronizálás a háttérben történik.
+                        </span>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h4>Hogyan működik?</h4>
+                    <ul>
+                        <li><b>Minden nap:</b> Automatikusan megjelenik minden reggel.</li>
+                        <li><b>Ciklikus:</b> Ha beállítja, hogy "Minden 2. héten", a rendszer a létrehozás napjától számolja a ciklust.</li>
+                        <li><b>Közös:</b> Amit pipál, a család többi tagjánál is pipálva lesz (kis késéssel).</li>
+                    </ul>
+                </div>
+
+                <div class="info-section">
+                    <h4>Adatkezelés</h4>
+                    <p>Az adatok a Google Firebase felhőben és a készülékén helyileg tárolódnak.</p>
                 </div>
                 
-                <!-- FRISSÍTÉS GOMB -->
-                <button onclick="forceReload()" class="btn-block btn-refresh">🔄 Applikáció Frissítése</button>
-                <div class="help-text" style="text-align:center;">Ha valami nem jelenik meg helyesen, nyomja meg ezt.</div>
-            </div>
-<div class="info-section">
-                <div class="alert-text" style="background:#fff3cd; border-color:#ffeeba; color:#856404; margin-top:15px;">
-                    🔔 <b>Figyelem: Nincs hangjelzés!</b><br>
-                    <span style="font-weight:normal; font-size:0.9rem;">
-                        A Gyógyszernapló nem ad hangjelzést. Kérjük, hogy az emlékeztetőt a <b>telefonja ébresztő funkciójának</b> beállításával állítsa be, és a Gyógyszernaplót csak a naplózásra használja.
-                    </span>
-                </div>
-            </div>
-            <div class="info-section">
-                <h4>Hogyan működik?</h4>
-                <ul style="padding-left:20px;">
-                    <li><b>Gyakoriság:</b> Beállíthat napi, heti (pl. Hétfő, Csütörtök) vagy ciklikus (minden 3. nap) szedést.</li>
-                    <li><b>Mai teendők:</b> Csak az aktuális napi gyógyszerek jelennek meg. Itt pipálhatja ki, ha bevett valamit.</li>
-                    <li><b>Halasztás:</b> Ha nem tudja azonnal bevenni, választhat 15-30-60 perces emlékeztetőt.</li>
-                    <li><b>Elfelejtett gyógyszer:</b> Ha nem pipálja ki éjfélig, a rendszer "Kihagyva" státusszal rögzíti.</li>
-                    <li><b>Kúra / Antibiotikum:</b> A rendszer visszaszámol, és a kúra végén automatikusan leállítja a gyógyszert.</li>
-                </ul>
-            </div>
-
-            <div class="info-section">
-                <h4>Adatvédelem és Biztonság</h4>
-                <p>Az alkalmazás egy zárt láncú rendszer. A rögzített nevek, TAJ számok és gyógyszeradatok nem kerülnek semmilyen központi szerverre. Az adatokhoz csak Ön fér hozzá, illetve akinek Ön elküldi (pl. háziorvosa).</p>
-            </div>
-
-            <div class="info-section">
-                <h4>Jogi Nyilatkozat</h4>
-                <p>Ez a szoftver egy ingyenes, lakossági segédeszköz, <b>NEM minősül orvostechnikai eszköznek</b>. A fejlesztők és a terjesztők a szoftvert "ahogy van" (as is) alapon bocsátják rendelkezésre, mindennemű garanciavállalás nélkül, azaz reklamációt nem fogadnak és nem kezelnek.</p>
-                <p>A gyógyszerek pontos adagolásáért és bevételéért kizárólag a felhasználó felelős. Kétség esetén, vagy ha rosszul érzi magát, azonnal forduljon kezelőorvosához vagy hívja az orvosi ügyeletet!</p>
-                <p><b>Kapcsolattartás:</b> Kérdéseivel forduljon háziorvosához.</p>
-            </div>
-            
-            <div style="text-align:center; color:#888; font-size:0.8rem; margin-top:20px;">
-                Verzió: 0.21 <br>
-                Licenc: balintblaszlo 2025, MIT licensz
+                <button class="btn-primary" onclick="location.reload(true)" style="margin-top:10px;">♻️ Teljes Újratöltés</button>
+                <div style="text-align:center; color:#aaa; font-size:0.8rem; margin-top:20px;">Családi Napló App © 2025</div>
             </div>
         </div>
     </div>
-
 </div>
 
-<!-- JOGI MODAL -->
-<div id="legal-modal">
-    <div class="modal-content">
-        <h3>⚠️ Figyelmeztetés</h3>
-        <p>Ez az alkalmazás <b>NEM orvostechnikai eszköz</b>. Kizárólag önmenedzselést segítő napló.</p>
-        <button class="btn-block" onclick="acceptLegal()">Elfogadom</button>
-    </div>
-</div>
-
-<nav>
-    <div class="nav-item active" onclick="switchTab('tab-today', this)"><span class="icon">💊</span> Mai</div>
-    <div class="nav-item" onclick="switchTab('tab-history', this)"><span class="icon">📊</span> Orvosnak</div>
-    <div class="nav-item" onclick="switchTab('tab-settings', this)"><span class="icon">⚙️</span> Beállítás</div>
-    <div class="nav-item" onclick="switchTab('tab-info', this)"><span class="icon">ℹ️</span> Infó</div>
+<nav id="navbar" style="display:none;">
+    <div class="nav-item active" onclick="switchTab('tab-today', this)"><span class="nav-icon">📅</span> Ma</div>
+    <div class="nav-item" onclick="switchTab('tab-summary', this)"><span class="nav-icon">📈</span> Össz.</div>
+    <div class="nav-item" onclick="switchTab('tab-settings', this)"><span class="nav-icon">⚙️</span> Beáll.</div>
+    <div class="nav-item" onclick="switchTab('tab-info', this)"><span class="nav-icon">ℹ️</span> Infó</div>
 </nav>
-
-<script>
-    // --- ADATMODELL V9.8 (Verzió: 0.20) ---
-    const APP_VERSION = '0.20';
-    const STORAGE_KEY = 'med_diary_v9'; 
-    
-    let appData = {
-        patient: { name: "", taj: "", docName: "", docEmail: "", isChild: false },
-        medications: [], 
-        history: [], // {date, time, name, dose, status, originalTime, timeDiff} <-- timeDiff ÚJ
-        legalAccepted: false,
-        lastRunVersion: ""
-    };
-    
-    let dailyState = { date: "", items: [] };
-    let currentType = 'chronic'; 
-
-    function getLocalTodayStr() {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    }
-
-    // --- INDÍTÁS (INIT) ---
-    function init() {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        const oldV8 = localStorage.getItem('med_diary_v8');
-        let needMigration = !stored; 
-        
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                appData = { ...appData, ...parsed };
-                if(!appData.patient) appData.patient = { name: "", taj: "", docName: "", docEmail: "", isChild: false };
-                
-                if (appData.lastRunVersion !== APP_VERSION) {
-                    console.log("Verziófrissítés...");
-                    // Itt most NEM törlöm a dailyState-et, hogy ne vesszen el a pipa, ha napközben frissít
-                    appData.lastRunVersion = APP_VERSION;
-                    saveData();
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        if (needMigration && oldV8) {
-            try {
-                const parsedOld = JSON.parse(oldV8);
-                appData = { ...appData, ...parsedOld };
-                appData.lastRunVersion = APP_VERSION;
-                if(!appData.patient) appData.patient = { name: "", taj: "", docName: "", docEmail: "", isChild: false };
-                saveData();
-            } catch(e) {}
-        }
-
-        if(appData.legalAccepted) { document.getElementById('legal-modal').style.display = 'none'; }
-        
-        // Mezők kitöltése
-        document.getElementById('pat-name').value = appData.patient.name || "";
-        document.getElementById('pat-taj').value = appData.patient.taj || "";
-        document.getElementById('doc-name').value = appData.patient.docName || "";
-        document.getElementById('doc-email').value = appData.patient.docEmail || "";
-        
-        setPatientMode(appData.patient.isChild ? 'child' : 'adult');
-        updateHeader();
-
-        initDay(); renderAll();
-    }
-
-    function saveData() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-        localStorage.setItem('med_daily_v9', JSON.stringify(dailyState));
-        updateHeader();
-    }
-    function acceptLegal() { appData.legalAccepted = true; document.getElementById('legal-modal').style.display = 'none'; saveData(); }
-    function updateHeader() { document.getElementById('header-doc-name').innerText = "Háziorvos: " + (appData.patient.docName || "Nincs beállítva"); }
-
-    // --- NAPI GENERÁLÁS LOGIKA ---
-    function initDay() {
-        const todayStr = getLocalTodayStr(); 
-        const storedDaily = localStorage.getItem('med_daily_v9');
-        
-        if(storedDaily) { 
-            const prevDaily = JSON.parse(storedDaily);
-            // Ha ÚJ nap van
-            if ((prevDaily.date && prevDaily.date !== todayStr) || !prevDaily.date) { 
-                if (prevDaily.date) logMissedDoses(prevDaily);
-                generateDailyTasks(todayStr); 
-            } else { 
-                // Ha UGYANAZ a nap (reload)
-                dailyState = prevDaily; 
-            }
-        } else { 
-            generateDailyTasks(todayStr); 
-        }
-        
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('today-header').innerText = new Date().toLocaleDateString('hu-HU', options);
-    }
-
-    function logMissedDoses(prevDaily) {
-        if(!prevDaily.items) return;
-        prevDaily.items.forEach(item => {
-            if(item.status === 'waiting') {
-                appData.history.unshift({ 
-                    date: prevDaily.date, time: item.time, name: item.name, dose: item.dose, 
-                    status: 'Kihagyva', timeDiff: 0 // Kihagyottnál nincs eltérés
-                });
-            }
-        });
-        if(appData.history.length > 500) appData.history = appData.history.slice(0, 500);
-        saveData();
-    }
-
-    function generateDailyTasks(dateStr) {
-        const parts = dateStr.split('-');
-        const today = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-        
-        const dayOfWeek = today.getDay(); 
-        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-        const existingItems = dailyState.items || [];
-        let items = [];
-
-        appData.medications.forEach(med => {
-            // ... (Akut és Gyakoriság logika változatlan, csak másolva a helytakarékosság miatt) ...
-            let isCourseActive = true;
-            let courseDay = 0;
-            if (med.type === 'acute') {
-                const sParts = med.startDate.split('-');
-                const localStart = new Date(parseInt(sParts[0]), parseInt(sParts[1])-1, parseInt(sParts[2]));
-                const diffTime = today - localStart;
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                if (diffDays < 1 || diffDays > parseInt(med.duration)) isCourseActive = false;
-                else courseDay = diffDays;
-            }
-            if (!isCourseActive) return;
-
-            let isDayActive = false;
-            let freqMode = med.freqMode || 'standard';
-            if (freqMode === 'weekly') { if (med.freqDays && med.freqDays.includes(dayOfWeek)) isDayActive = true; } 
-            else if (freqMode === 'interval') { 
-                if (med.cycleStartDate) {
-                    const cParts = med.cycleStartDate.split('-');
-                    const cycleStart = new Date(parseInt(cParts[0]), parseInt(cParts[1])-1, parseInt(cParts[2]));
-                    const diffTime = today - cycleStart;
-                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    if (diffDays >= 0 && diffDays % med.intervalDays === 0) isDayActive = true;
-                }
-            } else { isDayActive = true; }
-
-            if (!isDayActive) return;
-
-            med.times.forEach(tObj => {
-                let shouldAdd = false;
-                if (freqMode === 'standard') {
-                    if (tObj.type === 'all') shouldAdd = true;
-                    if (tObj.type === 'weekday' && !isWeekend) shouldAdd = true;
-                    if (tObj.type === 'weekend' && isWeekend) shouldAdd = true;
-                } else { shouldAdd = true; }
-
-                if (shouldAdd) {
-                    // SZINKRONIZÁCIÓS JAVÍTÁS (V0.18):
-                    // Megkeressük, van-e már ilyen gyógyszer mára
-                    let existing = existingItems.find(i => i.medId == med.id && i.time === tObj.t);
-                    
-                    // Ha nincs vagy várakozik, ellenőrizzük az history-t (Orvosi napló), hátha már bevette
-                    if (!existing || existing.status === 'waiting') {
-                        const inHistory = appData.history.some(h => 
-                            h.date === dateStr && h.name === med.name && h.status === 'Bevéve' && (h.originalTime === tObj.t)
-                        );
-                        if (inHistory) {
-                            if (!existing) {
-                                existing = {
-                                    uid: Math.random().toString(36).substr(2, 9),
-                                    medId: med.id, name: med.name, dose: med.dose, type: med.type,
-                                    courseInfo: med.type === 'acute' ? `${courseDay}. nap / ${med.duration}` : null,
-                                    time: tObj.t, status: 'done'
-                                };
-                            } else { existing.status = 'done'; }
-                        }
-                    }
-
-                    if (existing) { items.push(existing); } 
-                    else {
-                        items.push({
-                            uid: Math.random().toString(36).substr(2, 9),
-                            medId: med.id, name: med.name, dose: med.dose, type: med.type,
-                            courseInfo: med.type === 'acute' ? `${courseDay}. nap / ${med.duration}` : null,
-                            time: tObj.t, status: 'waiting'
-                        });
-                    }
-                }
-            });
-        });
-
-        items.sort((a,b) => { if (!a.time) return 1; if (!b.time) return -1; return a.time.localeCompare(b.time); });
-        dailyState = { date: dateStr, items: items };
-        saveData();
-    }
-
-    // --- BEVÉTEL LOGIKA (ÚJ: IDŐELTÉRÉS SZÁMÍTÁS) ---
-    function takeMed(uid) { 
-        const item = dailyState.items.find(i => i.uid == uid); 
-        if(item) { 
-            const now = new Date();
-            const actualTimeStr = now.toLocaleTimeString('hu-HU', {hour:'2-digit', minute:'2-digit'});
-            
-            // Tervezett időpont Date objektummá alakítása (mai napra)
-            const [pH, pM] = item.time.split(':').map(Number);
-            const plannedDate = new Date(); 
-            plannedDate.setHours(pH, pM, 0, 0);
-
-            // Eltérés számítása percben
-            let diffMs = now - plannedDate;
-            // Ha a diff nagyon nagy (pl > 12 óra), lehet hogy napváltás van (pl 23:00 vs 01:00)
-            // Egyszerűsítés: abszolút eltérést veszünk a mai napon belül.
-            let diffMins = Math.floor(Math.abs(diffMs) / 60000); 
-
-            // Figyelmeztetés küszöbök
-            if (diffMins > 360) { // 6 óra
-                alert(`⚠️ FIGYELEM! \nTöbb mint 6 óra eltérés a tervezett időtől (${Math.floor(diffMins/60)} óra ${diffMins%60} perc).\n\nKérjük, olvassa el a gyógyszer betegtájékoztatóját a kihagyott adaggal kapcsolatos teendőkről!`);
-            } else if (diffMins > 240) { // 4 óra
-                // Opcionális: enyhébb figyelmeztetés, vagy csak rögzítés
-            }
-
-            item.status = 'done'; 
-            appData.history.unshift({ 
-                date: dailyState.date, 
-                time: actualTimeStr, 
-                originalTime: item.time, // Ez a kulcs a szinkronhoz!
-                name: item.name, 
-                dose: item.dose, 
-                status: 'Bevéve',
-                timeDiff: diffMins // Mentjük az eltérést
-            }); 
-            saveData(); renderAll(); 
-        } 
-    }
-
-    // --- STATISZTIKA (ÚJ: KATEGÓRIÁK) ---
-    function calculateStats() {
-        let stats = {};
-        appData.history.forEach(h => { 
-            if(!stats[h.name]) stats[h.name] = { total: 0, taken: 0, late: 0, veryLate: 0 }; 
-            stats[h.name].total++; 
-            if(h.status === 'Bevéve') {
-                stats[h.name].taken++;
-                if (h.timeDiff > 360) stats[h.name].veryLate++; // > 6h
-                else if (h.timeDiff > 60) stats[h.name].late++; // > 1h
-            }
-        });
-        return stats;
-    }
-
-    function renderDashboard() {
-        const div = document.getElementById('dashboard-stats'); div.innerHTML = '';
-        let stats = calculateStats();
-        if(Object.keys(stats).length === 0) { div.innerHTML = '<div style="text-align:center; color:#777;">Még nincs elég adat a statisztikához.</div>'; return; }
-        
-        for (const [name, data] of Object.entries(stats)) {
-            // Százalékok a sávhoz
-            let pOk = 0, pLate = 0, pVeryLate = 0, pMissed = 0;
-            if (data.total > 0) {
-                let okCount = data.taken - data.late - data.veryLate; // Időben (<1h)
-                pOk = (okCount / data.total) * 100;
-                pLate = (data.late / data.total) * 100;
-                pVeryLate = (data.veryLate / data.total) * 100;
-                pMissed = ((data.total - data.taken) / data.total) * 100;
-            }
-
-            div.innerHTML += `
-                <div class="stat-row">
-                    <div class="stat-header">
-                        <span>${name}</span>
-                        <span style="font-size:0.8rem">${data.taken}/${data.total} bevétel</span>
-                    </div>
-                    <div class="progress-bg">
-                        <div class="bar-segment" style="width:${pOk}%; background:#28a745;" title="Időben"></div>
-                        <div class="bar-segment" style="width:${pLate}%; background:#ffc107;" title="Késés (1-6h)"></div>
-                        <div class="bar-segment" style="width:${pVeryLate}%; background:#dc3545;" title="Kritikus (>6h)"></div>
-                        <div class="bar-segment" style="width:${pMissed}%; background:#ddd;" title="Kihagyva"></div>
-                    </div>
-                    <div class="stat-details">
-                        ${data.late + data.veryLate > 0 ? `<span style="color:#d9534f">⚠️ ${data.late + data.veryLate}x jelentős késés</span>` : '<span style="color:#28a745">✔ Kiváló időzítés</span>'}
-                    </div>
-                </div>
-            `;
-        }
-        div.innerHTML += `<div style="text-align:center; font-size:0.75rem; color:#666; margin-top:10px;"><span style="color:#28a745">■</span> Időben <span style="color:#ffc107">■</span> 1-6ó késés <span style="color:#dc3545">■</span> >6ó eltérés</div>`;
-    }
-
-    // --- EGYÉB UI FÜGGVÉNYEK (Változatlan) ---
-    function toggleFreqMode() {
-        const mode = document.getElementById('freq-mode').value;
-        document.getElementById('freq-weekly-panel').style.display = mode === 'weekly' ? 'block' : 'none';
-        document.getElementById('freq-interval-panel').style.display = mode === 'interval' ? 'block' : 'none';
-        document.querySelectorAll('.t-type').forEach(sel => { sel.style.display = mode === 'standard' ? 'block' : 'none'; });
-    }
-    function toggleDay(el) { el.classList.toggle('checked'); updateSelectedDays(); }
-    function updateSelectedDays() {
-        let arr = [];
-        document.querySelectorAll('.week-day.checked').forEach(el => {
-            const txt = el.innerText;
-            if(txt==='H') arr.push(1); if(txt==='K') arr.push(2); if(txt==='Sze') arr.push(3);
-            if(txt==='Cs') arr.push(4); if(txt==='P') arr.push(5); if(txt==='Szo') arr.push(6); if(txt==='V') arr.push(0);
-        });
-        document.getElementById('selected-days').value = JSON.stringify(arr);
-    }
-    function saveMedication() { /* ... (kód ugyanaz mint V0.19) ... */ try { const id = document.getElementById('edit-id').value; const name = document.getElementById('new-name').value; const dose = document.getElementById('new-dose').value; const freqMode = document.getElementById('freq-mode').value; let times = []; document.querySelectorAll('#time-container > div').forEach(row => { const tVal = row.querySelector('.t-val').value; const tType = row.querySelector('.t-type').value; if(tVal) times.push({ t: tVal, type: tType }); }); if(!name || times.length === 0) return alert('Név és legalább egy érvényes időpont kötelező!'); let medObj = { id: id ? parseInt(id) : Date.now(), name, dose, times, type: currentType, freqMode }; if(currentType === 'acute') { medObj.startDate = document.getElementById('new-start-date').value; medObj.duration = document.getElementById('new-duration').value; } if (freqMode === 'weekly') { updateSelectedDays(); medObj.freqDays = JSON.parse(document.getElementById('selected-days').value || "[]"); if(medObj.freqDays.length === 0) return alert('Válasszon legalább egy napot!'); } else if (freqMode === 'interval') { medObj.intervalDays = parseInt(document.getElementById('freq-days').value); medObj.cycleStartDate = document.getElementById('freq-start').value; if(!medObj.cycleStartDate) return alert('Kezdő dátum kötelező!'); } if(id) { const idx = appData.medications.findIndex(m => m.id == id); appData.medications[idx] = medObj; } else { appData.medications.push(medObj); } generateDailyTasks(dailyState.date); saveData(); resetForm(); renderAll(); alert('Rögzítve!'); switchTab('tab-settings', document.querySelectorAll('.nav-item')[2]); } catch(err) { alert("Hiba történt a mentéskor: " + err.message); console.error(err); } }
-    function editMed(id) { const med = appData.medications.find(m => m.id == id); if(!med) return; document.getElementById('edit-id').value = med.id; document.getElementById('new-name').value = med.name; document.getElementById('new-dose').value = med.dose; setMedType(med.type || 'chronic'); if(med.type === 'acute') { document.getElementById('new-start-date').value = med.startDate; document.getElementById('new-duration').value = med.duration; } document.getElementById('freq-mode').value = med.freqMode || 'standard'; toggleFreqMode(); if (med.freqMode === 'weekly') { document.querySelectorAll('.week-day').forEach(el => { el.classList.remove('checked'); const txt = el.innerText; let d = -1; if(txt==='H') d=1; if(txt==='K') d=2; if(txt==='Sze') d=3; if(txt==='Cs') d=4; if(txt==='P') d=5; if(txt==='Szo') d=6; if(txt==='V') d=0; if(med.freqDays && med.freqDays.includes(d)) el.classList.add('checked'); }); updateSelectedDays(); } else if (med.freqMode === 'interval') { document.getElementById('freq-days').value = med.intervalDays || 2; document.getElementById('freq-start').value = med.cycleStartDate || ""; } document.getElementById('time-container').innerHTML = ''; med.times.forEach(t => addTimeField(t.t, t.type)); toggleFreqMode(); document.getElementById('form-title').innerText = 'Szerkesztés'; document.getElementById('save-btn').innerText = 'Mentés'; document.getElementById('cancel-btn').style.display = 'block'; window.scrollTo(0,0); }
-    function resetForm() { document.getElementById('edit-id').value = ''; document.getElementById('new-name').value = ''; document.getElementById('new-dose').value = ''; document.getElementById('time-container').innerHTML = ''; document.getElementById('freq-mode').value = 'standard'; document.querySelectorAll('.week-day').forEach(e => e.classList.remove('checked')); document.getElementById('freq-days').value = 2; document.getElementById('freq-start').value = ''; setMedType('chronic'); addTimeField(); toggleFreqMode(); document.getElementById('form-title').innerText = '💊 Új gyógyszer'; document.getElementById('save-btn').innerText = 'Hozzáadás'; document.getElementById('cancel-btn').style.display = 'none'; }
-    function setPatientMode(mode) { const isChild = (mode === 'child'); appData.patient.isChild = isChild; document.getElementById('opt-adult').className = isChild ? 'type-option' : 'type-option selected'; document.getElementById('opt-child').className = isChild ? 'type-option selected' : 'type-option'; document.getElementById('lbl-pat-name').innerText = isChild ? "Gyermek Neve" : "Beteg Neve"; saveSettings(); }
-    function saveSettings() { appData.patient.name = document.getElementById('pat-name').value; appData.patient.taj = document.getElementById('pat-taj').value; appData.patient.docName = document.getElementById('doc-name').value; appData.patient.docEmail = document.getElementById('doc-email').value; saveData(); }
-    function setMedType(type) { currentType = type; document.querySelectorAll('.type-option').forEach(el => { if(el.id.startsWith('opt-c') || el.id.startsWith('opt-a')) el.classList.remove('selected', 'selected-acute'); }); if(type === 'chronic') { document.getElementById('opt-chronic').classList.add('selected'); document.getElementById('acute-settings').style.display = 'none'; } else { document.getElementById('opt-acute').classList.add('selected-acute'); document.getElementById('acute-settings').style.display = 'block'; document.getElementById('new-start-date').value = new Date().toISOString().split('T')[0]; } }
-    function addTimeField(val="08:00", type="all") { const div = document.createElement('div'); div.className = 'type-selector'; div.style.marginBottom = "5px"; div.innerHTML = `<input type="time" class="t-val" value="${val}"><select class="t-type"><option value="all" ${type=='all'?'selected':''}>Minden nap</option><option value="weekday" ${type=='weekday'?'selected':''}>Hétköznap</option><option value="weekend" ${type=='weekend'?'selected':''}>Hétvége</option></select><button class="btn-delete" style="flex:0.3; margin:0;" onclick="this.parentElement.remove()">X</button>`; document.getElementById('time-container').appendChild(div); toggleFreqMode(); }
-    function deleteMed(id) { if(confirm('Biztosan törli?')) { appData.medications = appData.medications.filter(m => m.id != id); dailyState.items = dailyState.items.filter(i => i.medId != id); saveData(); renderAll(); } }
-    function showSnooze(uid) { document.getElementById(`btn-group-${uid}`).innerHTML = `<div class="snooze-options"><button class="btn-snooze-opt" onclick="applySnooze('${uid}', 15)">+15p</button><button class="btn-snooze-opt" onclick="applySnooze('${uid}', 30)">+30p</button><button class="btn-snooze-opt" onclick="applySnooze('${uid}', 60)">+1ó</button><button class="btn-snooze-opt" style="background:#ddd" onclick="renderToday()">X</button></div>`; }
-    function applySnooze(uid, mins) { const item = dailyState.items.find(i => i.uid == uid); if(item) { let [h, m] = item.time.split(':').map(Number); let d = new Date(); d.setHours(h, m + mins); let nh = String(d.getHours()).padStart(2,'0'); let nm = String(d.getMinutes()).padStart(2,'0'); item.time = `${nh}:${nm}`; saveData(); renderAll(); } }
-    function renderAll() { renderToday(); renderSettingsList(); renderHistory(); renderDashboard(); }
-    function renderToday() { const list = document.getElementById('today-list'); list.innerHTML = ''; const now = new Date(); const currentHm = now.getHours() * 60 + now.getMinutes(); let hasItems = false; dailyState.items.forEach(item => { hasItems = true; const div = document.createElement('div'); let statusClass = 'status-waiting'; let [h, m] = item.time.split(':').map(Number); if(item.status == 'waiting' && currentHm >= (h*60+m)) statusClass = 'status-due'; if(item.status == 'done') statusClass = 'status-done'; let typeClass = item.type === 'acute' ? 'type-acute' : ''; let acuteBadge = item.type === 'acute' ? `<div class="acute-badge">Kúra</div>` : ''; let courseText = item.courseInfo ? `<div class="course-info">📅 ${item.courseInfo}</div>` : ''; let btns = item.status == 'waiting' ? `<div class="btn-group" id="btn-group-${item.uid}"><button class="btn-take" onclick="takeMed('${item.uid}')">✔ Bevettem</button><button class="btn-snooze" onclick="showSnooze('${item.uid}')">💤 Halaszt</button></div>` : `<div style="color:green; font-weight:bold; margin-top:10px;">✅ BEVÉVE</div>`; div.className = `card ${statusClass} ${typeClass}`; div.innerHTML = `${acuteBadge}<div class="med-header"><div><div class="med-name">${item.name}</div><div class="med-details">${item.dose}</div>${courseText}</div><div class="med-time">${item.time}</div></div>${btns}`; list.appendChild(div); }); document.getElementById('empty-msg').style.display = hasItems ? 'none' : 'block'; }
-    function renderSettingsList() { const list = document.getElementById('settings-list'); list.innerHTML = ''; appData.medications.forEach(m => { let tags = m.times.map(t => { let icon = '⏰'; if (t.type === 'weekday') icon = '💼'; if (t.type === 'weekend') icon = '🏖️'; if (t.type === 'all' && m.freqMode === 'standard') icon = '🔄'; return `<span style="background:#eee; padding:2px 5px; border-radius:4px; font-size:0.8rem; margin-right:5px;">${icon} ${t.t}</span>`; }).join(''); let info = ''; if (m.freqMode === 'weekly') { let days = m.freqDays.map(d => ['V','H','K','Sze','Cs','P','Szo'][d]).join(', '); info = `<div style="font-size:0.8rem; color:#666;">Heti: ${days}</div>`; } else if (m.freqMode === 'interval') { info = `<div style="font-size:0.8rem; color:#666;">Minden ${m.intervalDays}. napon</div>`; } let typeLabel = m.type === 'acute' ? '<b style="color:#fd7e14">[KÚRA]</b>' : '<b>[Krónikus]</b>'; list.innerHTML += `<div class="card" style="padding:10px;"><div style="display:flex; justify-content:space-between;"><div>${typeLabel} ${m.name} (${m.dose})</div><div><button class="btn-edit btn-action" onclick="editMed(${m.id})">✏️</button><button class="btn-delete btn-action" onclick="deleteMed(${m.id})">🗑️</button></div></div>${info}<div style="margin-top:5px;">${tags}</div></div>`; }); }
-    
-    // --- ÚJ HISTORY RENDERELÉS (Eltérés megjelenítése) ---
-    function renderHistory() {
-        const tbody = document.getElementById('history-table'); tbody.innerHTML = '';
-        appData.history.slice(0, 30).forEach(h => {
-            let color = h.status === 'Bevéve' ? 'green' : (h.status === 'Kihagyva' ? 'red' : 'orange');
-            
-            // Eltérés szövegének generálása
-            let diffText = "";
-            if (h.timeDiff > 60) {
-                let hDiff = Math.floor(h.timeDiff/60);
-                let mDiff = h.timeDiff%60;
-                diffText = `<br><small style="color:${h.timeDiff > 360 ? '#dc3545' : '#ffc107'}">⚠️ +${hDiff}ó ${mDiff}p</small>`;
-            } else if (h.status === 'Bevéve') {
-                diffText = `<br><small style="color:#aaa">OK</small>`;
-            }
-
-            tbody.innerHTML += `<tr><td>${h.date}<br>${h.time}</td><td><b>${h.name}</b><br><small>${h.dose || ''}</small></td><td style="color:${color}">${h.status === 'Bevéve' ? '✔' : '❌'}${diffText}</td></tr>`;
-        });
-    }
-
-    // --- EXPORT FRISSÍTÉS ---
-    window.exportData = function() {
-        const name = (appData.patient.name || "Beteg").replace(/ /g, "_"); const date = new Date().toISOString().split('T')[0]; const filename = `Naplo_${name}_${date}.csv`;
-        let csv = "\uFEFFBETEG ADATAI\nNev:," + (appData.patient.name||'-') + "\nTAJ:," + (appData.patient.taj||'-') + "\n\n--- STATISZTIKA ---\nGyogyszer,Osszes,Bevett,Keses,Sikeresseg %\n";
-        
-        let stats = calculateStats(); 
-        for (const [m, d] of Object.entries(stats)) { 
-            let pct = d.total > 0 ? Math.round((d.taken/d.total)*100) : 0;
-            csv += `${m},${d.total},${d.taken},${d.late + d.veryLate},${pct}%\n`; 
-        }
-        
-        csv += "\n--- RESZLETES NAPLO ---\nDatum,Ido,Gyogyszer,Dozis,Statusz,Elteres(perc)\n";
-        appData.history.forEach(r => { 
-            let d = r.dose || ""; if(!d) { let m=appData.medications.find(x=>x.name===r.name); if(m) d=m.dose; } 
-            let diff = r.timeDiff || 0;
-            csv += `${r.date},${r.time},${r.name},${d},${r.status},${diff}\n`; 
-        });
-        
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = filename; document.body.appendChild(link); link.click(); document.body.removeChild(link); alert("Fájl letöltve! Most küldje el emailben.");
-    }
-
-    // --- EGYÉB FUNKCIÓK ---
-    window.switchTab = function(tabId, navElem) { document.querySelectorAll('.tab-content').forEach(d => {d.style.display='none'; d.classList.remove('active')}); document.getElementById(tabId).style.display='block'; setTimeout(() => document.getElementById(tabId).classList.add('active'), 10); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if(navElem) navElem.classList.add('active'); window.scrollTo(0,0); }
-    window.prepareEmail = function() { const email = appData.patient.docEmail; if(!email) return alert("Adja meg az orvos email címét!"); const name = appData.patient.name || "[Név]"; window.location.href = `mailto:${email}?subject=Gyógyszernapló: ${name}&body=Tisztelt Doktor Úr/Nő!%0D%0A%0D%0AMellékelten küldöm a gyógyszernaplómat.%0D%0A%0D%0ABeteg: ${name}`; }
-    window.hardReset = function() { if(confirm("Minden adat törlése?")) { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem('med_daily_v9'); location.reload(); } }
-    window.forceReload = function() { if(confirm("Ez frissíti az alkalmazást a legújabb verzióra. Az adatai megmaradnak.")) { location.reload(true); } }
-
-    if(document.getElementById('time-container').children.length === 0) addTimeField();
-    init(); setInterval(() => { initDay(); renderToday(); }, 60000);
-</script>
-</body>
-</html>
