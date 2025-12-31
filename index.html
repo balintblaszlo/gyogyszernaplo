@@ -22,17 +22,12 @@
         .header-left { display: flex; flex-direction: column; }
         h1 { margin: 0; font-size: 1.2rem; color: var(--main); line-height: 1.2; }
         .fam-code-display { font-size: 0.75rem; color: #888; margin-top: 2px; }
-        .fam-code-display strong { color: var(--main); }
         .user-badge { background: var(--main); color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
 
-        /* TABOK */
+        /* TABOK & CONTAINER */
         .container { padding: 15px; max-width: 600px; margin: 0 auto; }
         .tab-content { display: none; animation: fadein 0.3s; }
         .tab-content.active { display: block; }
-
-        /* DÁTUM NAVIGÁCIÓ */
-        .date-nav { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 15px; color: #666; }
-        .nav-arrow { background: none; border: 1px solid #ddd; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--main); font-weight: bold; padding: 0; }
 
         /* KÁRTYÁK */
         .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); border-left: 5px solid #ccc; position: relative; }
@@ -56,29 +51,31 @@
         .btn-skip { background: #fff; border: 1px solid #ddd; color: #aaa; flex: 0.5; font-size: 1.2rem; padding: 0; display: flex; align-items: center; justify-content: center;}
         .btn-primary { background: var(--main); width: 100%; }
         .btn-danger { background: var(--danger); }
+        .btn-reset { background: #333; color: white; border: 1px solid #000; margin-top: 10px; }
         
         select, input[type="number"], input[type="text"] { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; background: white; }
         
         .week-selector { display: flex; justify-content: space-between; gap: 4px; margin-bottom: 15px; }
         .day-btn { padding: 8px 0; flex: 1; text-align: center; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; color: #333; }
         .day-btn.selected { background: var(--main); color: white; border-color: var(--main); }
+        
+        /* Dátum Nav */
+        .date-nav { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 15px; color: #666; }
+        .nav-arrow { background: none; border: 1px solid #ddd; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
-        /* INFO TAB STYLES */
+        /* INFO & CHIPS */
         .info-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
-        .info-section h4 { margin-bottom: 10px; color: var(--main); }
-        .info-section p, .info-section li { font-size: 0.9rem; line-height: 1.5; color: #444; }
-        .alert-text { color: var(--main); font-weight: bold; background: #eef6ff; padding: 10px; border-radius: 8px; border: 1px solid #cfe2ff; }
+        .chip-container { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; margin-bottom: 15px; }
+        .chip { background: #eee; padding: 6px 12px; border-radius: 15px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .chip-del { font-size: 0.8rem; opacity: 0.6; padding: 0 4px; }
+        .stat-bar { height: 20px; background: #eee; border-radius: 10px; overflow: hidden; margin: 20px 0; display: flex; }
+        .stat-fill { height: 100%; background: var(--accent); transition: width 0.5s; }
 
         /* NAVBAR */
         nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; height: 70px; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
         .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #aaa; font-size: 0.75rem; }
         .nav-item.active { color: var(--main); font-weight: bold; }
         .nav-icon { font-size: 1.5rem; margin-bottom: 4px; }
-        .stat-bar { height: 20px; background: #eee; border-radius: 10px; overflow: hidden; margin: 20px 0; display: flex; }
-        .stat-fill { height: 100%; background: var(--accent); transition: width 0.5s; }
-        .chip-container { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; margin-bottom: 15px; }
-        .chip { background: #eee; padding: 6px 12px; border-radius: 15px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-        .chip-del { font-size: 0.8rem; opacity: 0.6; padding: 0 4px; }
 
         @keyframes fadein { from { opacity:0; transform: translateY(5px); } to { opacity:1; transform: translateY(0); } }
     </style>
@@ -173,9 +170,17 @@
 
                 <button class="btn-primary" onclick="addNewTask()">Hozzáadás</button>
             </div>
+            
+            <h3>Adatkezelés</h3>
+            <div class="card" style="border-left-color: #333;">
+                <p style="font-size:0.9rem; margin-top:0;">Ha nem jelennek meg az új feladatok, használd ezt a gombot. Ez törli a telefonos gyorsítótárat és mindent újratölt a szerverről.</p>
+                <button class="btn-reset" onclick="hardReset()">⚠️ ADATOK TÖRLÉSE ÉS FRISSÍTÉS (RESET)</button>
+            </div>
+
             <h3>Mentett Feladatok</h3>
             <div id="manage-list"></div>
-            <div style="margin-top: 40px; padding-top: 20px; border-top:1px solid #ddd;">
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top:1px solid #ddd;">
                 <button class="btn-danger" onclick="logout()">🚪 Kilépés</button>
             </div>
         </div>
@@ -186,28 +191,12 @@
                 
                 <div class="info-section">
                     <div class="alert-text">
-                        🛠️ Verzió: 2.1 (Gyorsítótárazott)<br>
-                        <span style="font-weight:normal; font-size:0.85rem;">
-                            Ez az alkalmazás a telefonján is tárolja az adatokat, így gyorsabban működik és kevesebb adatforgalmat generál. A szinkronizálás a háttérben történik.
-                        </span>
+                        🛠️ Verzió: 2.2 (Stabil Szinkron)<br>
+                        Ez az alkalmazás helyben (a telefonon) tárolja az adatokat a gyorsaság érdekében, és a háttérben szinkronizál.
                     </div>
                 </div>
 
-                <div class="info-section">
-                    <h4>Hogyan működik?</h4>
-                    <ul>
-                        <li><b>Minden nap:</b> Automatikusan megjelenik minden reggel.</li>
-                        <li><b>Ciklikus:</b> Ha beállítja, hogy "Minden 2. héten", a rendszer a létrehozás napjától számolja a ciklust.</li>
-                        <li><b>Közös:</b> Amit pipál, a család többi tagjánál is pipálva lesz (kis késéssel).</li>
-                    </ul>
-                </div>
-
-                <div class="info-section">
-                    <h4>Adatkezelés</h4>
-                    <p>Az adatok a Google Firebase felhőben és a készülékén helyileg tárolódnak.</p>
-                </div>
-                
-                <button class="btn-primary" onclick="location.reload(true)" style="margin-top:10px;">♻️ Teljes Újratöltés</button>
+                <button class="btn-reset" style="width:100%" onclick="hardReset()">⚠️ TELJES ÚJRAINDÍTÁS (RESET)</button>
                 <div style="text-align:center; color:#aaa; font-size:0.8rem; margin-top:20px;">Családi Napló App © 2025</div>
             </div>
         </div>
@@ -241,8 +230,8 @@
     let state = {
         famId: localStorage.getItem('famId') || '',
         user: localStorage.getItem('user') || '',
-        tasks: JSON.parse(localStorage.getItem(CACHE_TASKS) || '[]'), // Init from cache
-        daily: JSON.parse(localStorage.getItem(CACHE_DAILY) || '[]'), // Init from cache
+        tasks: JSON.parse(localStorage.getItem(CACHE_TASKS) || '[]'), 
+        daily: JSON.parse(localStorage.getItem(CACHE_DAILY) || '[]'), 
         categories: [],
         todayStr: new Date().toISOString().split('T')[0],
         currentDateObj: new Date()
@@ -264,7 +253,17 @@
 
     function logout() {
         if(confirm("Kilépés?")) {
-            localStorage.clear(); // Töröljük a cache-t is biztonságból
+            localStorage.clear();
+            location.reload();
+        }
+    }
+    
+    // --- ÚJ RESET FUNKCIÓ ---
+    function hardReset() {
+        if(confirm("Ez törli a telefonon tárolt átmeneti adatokat és mindent újra letölt a szerverről. Biztosan folytatod?")) {
+            // Megtartjuk a login adatokat, de töröljük a cache-t
+            localStorage.removeItem(CACHE_TASKS);
+            localStorage.removeItem(CACHE_DAILY);
             location.reload();
         }
     }
@@ -282,7 +281,6 @@
         renderManageList();
         renderToday();
         
-        // Majd indítjuk a figyelést (ez frissíti a cache-t a háttérben)
         setupListeners();
         renderFreqOptions();
     }
@@ -295,7 +293,6 @@
     function changeDay(offset) {
         state.currentDateObj.setDate(state.currentDateObj.getDate() + offset);
         updateDateDisplay();
-        // Dátum váltáskor töröljük a napi nézetet átmenetileg, majd betöltjük
         state.daily = []; 
         renderToday();
         setupDailyListener(); 
@@ -305,30 +302,23 @@
     function setupListeners() {
         const famRef = db.collection('families').doc(state.famId);
         
-        // KATEGÓRIÁK
         famRef.collection('meta').doc('settings').onSnapshot(doc => {
             if(doc.exists) state.categories = doc.data().categories || [];
             else famRef.collection('meta').doc('settings').set({ categories: [] });
             renderCategoryChips();
         });
 
-        // FELADAT DEFINÍCIÓK + CACHE UPDATE
         famRef.collection('tasks').onSnapshot(snap => {
             let newTasks = [];
             snap.forEach(d => newTasks.push({id: d.id, ...d.data()}));
-            
-            // Csak akkor renderelünk újra, ha változott valami, de a Cache-t mindenképp frissítjük
             state.tasks = newTasks;
             localStorage.setItem(CACHE_TASKS, JSON.stringify(state.tasks));
             renderManageList();
-            
-            // Ha betöltődtek a definíciók, futtatjuk a generátort
             checkAndGenerateDaily(); 
         });
         
         setupDailyListener();
 
-        // HISTORY
         famRef.collection('history').orderBy('ts', 'desc').limit(20).onSnapshot(snap => {
             const list = document.getElementById('history-list'); list.innerHTML = '';
             snap.forEach(d => {
@@ -343,14 +333,12 @@
         if (unsubscribeDaily) unsubscribeDaily();
         const famRef = db.collection('families').doc(state.famId);
         
-        // Napi lista figyelése
         unsubscribeDaily = famRef.collection('daily').doc(state.todayStr).onSnapshot(doc => {
             if(doc.exists) { 
                 state.daily = doc.data().items || []; 
-                localStorage.setItem(CACHE_DAILY, JSON.stringify(state.daily)); // Cache update
+                localStorage.setItem(CACHE_DAILY, JSON.stringify(state.daily));
                 renderToday(); 
             } else { 
-                // Ha üres a szerveren, próbáljunk generálni
                 state.daily = [];
                 renderToday();
                 checkAndGenerateDaily(); 
@@ -358,9 +346,11 @@
         });
     }
 
-    // --- 4. GENERÁLÁS & OPTIMISTA FRISSÍTÉS ---
-    // Ez a függvény dönti el, hogy egy feladatnak (task) ott kell-e lennie a mai napon
+    // --- 4. GENERÁLÁS & DÁTUM ELLENŐRZÉS ---
     function isTaskDueToday(t, checkDate) {
+        // Dátum normalizálása éjfélre a pontos számításhoz
+        checkDate.setHours(0,0,0,0);
+        
         const dayOfWeek = checkDate.getDay(); 
         const dateNum = checkDate.getDate();
         
@@ -371,9 +361,11 @@
         } 
         
         if (t.freqType === 'interval_week') {
-            const start = new Date(t.startDate); start.setHours(0,0,0,0);
+            const start = new Date(t.startDate); 
+            start.setHours(0,0,0,0); // Kezdő dátumot is éjfélre húzzuk
             const oneDay = 24 * 60 * 60 * 1000;
             const diffDays = Math.round((checkDate - start) / oneDay);
+            // Ha a mai nap a kezdőnap, vagy eltelt pontosan X hét
             return (diffDays >= 0 && diffDays % (t.interval * 7) === 0);
         }
 
@@ -382,7 +374,8 @@
         }
 
         if (t.freqType === 'interval_month') {
-            const start = new Date(t.startDate); start.setHours(0,0,0,0);
+            const start = new Date(t.startDate); 
+            start.setHours(0,0,0,0);
             if (dateNum === start.getDate()) {
                 let months = (checkDate.getFullYear() - start.getFullYear()) * 12;
                 months -= start.getMonth();
@@ -431,7 +424,6 @@
             });
 
             if (itemsChanged) {
-                // Ha változott, írjuk a DB-be. A Listener majd frissíti a UI-t és a Cache-t.
                 await ref.set({ items: currentItems }, { merge: true });
                 if(forceNotify) alert("Lista frissítve!");
             } else if (forceNotify) {
@@ -448,13 +440,15 @@
         
         if(!name) return alert("Név kötelező!");
 
+        // FONTOS: Kezdő dátum beállítása MAI napra, hogy azonnal megjelenjen
+        const todayISO = new Date().toISOString();
+
         let taskObj = { 
             name, cat, freqType: type,
-            created: new Date().toISOString(),
-            startDate: new Date().toISOString()
+            created: todayISO,
+            startDate: todayISO 
         };
 
-        // Adatgyűjtés (rövidítve)
         if (type === 'weekly_days') {
             let days = [];
             document.querySelectorAll('#opt-weekly-days .day-btn.selected').forEach(el => {
@@ -473,14 +467,12 @@
             taskObj.posDay = parseInt(document.getElementById('month-pos-day').value);
         }
 
-        // Kategória
         if(cat && !state.categories.includes(cat)) {
             const newCats = [...state.categories, cat].sort();
             db.collection('families').doc(state.famId).collection('meta').doc('settings').update({ categories: newCats });
         }
 
-        // 1. OPTIMISTA UI FRISSÍTÉS (Helyi Task Lista)
-        // Generálunk egy ideiglenes ID-t, hogy megjelenhessen a listában
+        // 1. HELYI TASK LISTA FRISSÍTÉS (OPTIMISTA)
         const tempId = "temp_" + Date.now();
         const taskWithTempId = { ...taskObj, id: tempId };
         
@@ -488,7 +480,7 @@
         localStorage.setItem(CACHE_TASKS, JSON.stringify(state.tasks));
         renderManageList();
 
-        // 2. OPTIMISTA UI FRISSÍTÉS (Napi Lista, ha mára esik)
+        // 2. NAPI LISTA FRISSÍTÉS (HA KELL)
         const checkDate = new Date(state.currentDateObj); checkDate.setHours(0,0,0,0);
         if (isTaskDueToday(taskWithTempId, checkDate)) {
              state.daily.push({
@@ -499,14 +491,10 @@
             renderToday();
         }
 
-        // 3. KÜLDÉS SZERVERRE
-        // Először a definíciót adjuk hozzá
+        // 3. SZERVER MENTÉS
         db.collection('families').doc(state.famId).collection('tasks').add(taskObj).then((docRef) => {
-            // Sikerült menteni a definíciót. Most frissíteni kell a napi dokumentumot is a szerveren, 
-            // hogy a többiek is lássák (Smart Update).
-            // A listener majd felülírja a "temp_" ID-s helyi adatot a valódival.
+            // Ha sikerült, a szerveren lévő napi listát is frissítjük, hogy a többiek lássák
             checkAndGenerateDaily(); 
-            
             alert("Siker! (Háttérben szinkronizálva)");
             document.getElementById('new-name').value = '';
             document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
@@ -548,7 +536,7 @@
     function planTask(idx) {
         const t = prompt("Mikorra?", "De."); if(!t) return;
         state.daily[idx].plannedBy = state.user; state.daily[idx].plannedTime = t;
-        saveDaily(); // UI + Cache + Server update
+        saveDaily(); 
     }
     function finishTask(idx) {
         state.daily[idx].status = 'done'; state.daily[idx].doneBy = state.user;
@@ -561,10 +549,10 @@
     function resetTask(idx) { state.daily[idx].status = 'todo'; saveDaily(); }
 
     function saveDaily() { 
-        // 1. Local Cache Update (Azonnali)
+        // 1. Cache
         localStorage.setItem(CACHE_DAILY, JSON.stringify(state.daily));
         renderToday();
-        // 2. Server Update
+        // 2. Server
         db.collection('families').doc(state.famId).collection('daily').doc(state.todayStr).update({ items: state.daily }); 
     }
 
