@@ -220,3 +220,378 @@
     <div class="nav-item" onclick="switchTab('tab-settings', this)"><span class="nav-icon">⚙️</span> Beáll.</div>
     <div class="nav-item" onclick="switchTab('tab-info', this)"><span class="nav-icon">ℹ️</span> Infó</div>
 </nav>
+
+<script>
+    // --- 1. CONFIG & STATE ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyD4cCZROENWwtdJSw8RibOOoUcyzhWvmKM",
+        authDomain: "csaladifeladatok.firebaseapp.com",
+        projectId: "csaladifeladatok",
+        storageBucket: "csaladifeladatok.firebasestorage.app",
+        messagingSenderId: "391183062816",
+        appId: "1:391183062816:web:0bf885d26c67447c50e945"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Cache kulcsok
+    const CACHE_TASKS = 'fam_tasks_cache';
+    const CACHE_DAILY = 'fam_daily_cache';
+
+    let state = {
+        famId: localStorage.getItem('famId') || '',
+        user: localStorage.getItem('user') || '',
+        tasks: JSON.parse(localStorage.getItem(CACHE_TASKS) || '[]'), // Init from cache
+        daily: JSON.parse(localStorage.getItem(CACHE_DAILY) || '[]'), // Init from cache
+        categories: [],
+        todayStr: new Date().toISOString().split('T')[0],
+        currentDateObj: new Date()
+    };
+    
+    let unsubscribeDaily = null;
+
+    // --- 2. INIT ---
+    if(state.famId && state.user) startApp();
+
+    function login() {
+        const f = document.getElementById('family-code').value.trim();
+        const u = document.getElementById('user-name').value.trim();
+        if(!f || !u) return alert("Kérlek tölts ki mindent!");
+        state.famId = f; state.user = u;
+        localStorage.setItem('famId', f); localStorage.setItem('user', u);
+        startApp();
+    }
+
+    function logout() {
+        if(confirm("Kilépés?")) {
+            localStorage.clear(); // Töröljük a cache-t is biztonságból
+            location.reload();
+        }
+    }
+
+    function startApp() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        document.getElementById('navbar').style.display = 'flex';
+        document.getElementById('display-user').innerText = state.user;
+        document.getElementById('display-fam-id').innerText = state.famId;
+        
+        updateDateDisplay();
+        
+        // AZONNALI RENDER CACHE-BŐL
+        renderManageList();
+        renderToday();
+        
+        // Majd indítjuk a figyelést (ez frissíti a cache-t a háttérben)
+        setupListeners();
+        renderFreqOptions();
+    }
+    
+    function updateDateDisplay() {
+        document.getElementById('today-date').innerText = state.currentDateObj.toLocaleDateString('hu-HU', {weekday:'long', month:'long', day:'numeric'});
+        state.todayStr = state.currentDateObj.toISOString().split('T')[0];
+    }
+    
+    function changeDay(offset) {
+        state.currentDateObj.setDate(state.currentDateObj.getDate() + offset);
+        updateDateDisplay();
+        // Dátum váltáskor töröljük a napi nézetet átmenetileg, majd betöltjük
+        state.daily = []; 
+        renderToday();
+        setupDailyListener(); 
+    }
+
+    // --- 3. SYNC LOGIC ---
+    function setupListeners() {
+        const famRef = db.collection('families').doc(state.famId);
+        
+        // KATEGÓRIÁK
+        famRef.collection('meta').doc('settings').onSnapshot(doc => {
+            if(doc.exists) state.categories = doc.data().categories || [];
+            else famRef.collection('meta').doc('settings').set({ categories: [] });
+            renderCategoryChips();
+        });
+
+        // FELADAT DEFINÍCIÓK + CACHE UPDATE
+        famRef.collection('tasks').onSnapshot(snap => {
+            let newTasks = [];
+            snap.forEach(d => newTasks.push({id: d.id, ...d.data()}));
+            
+            // Csak akkor renderelünk újra, ha változott valami, de a Cache-t mindenképp frissítjük
+            state.tasks = newTasks;
+            localStorage.setItem(CACHE_TASKS, JSON.stringify(state.tasks));
+            renderManageList();
+            
+            // Ha betöltődtek a definíciók, futtatjuk a generátort
+            checkAndGenerateDaily(); 
+        });
+        
+        setupDailyListener();
+
+        // HISTORY
+        famRef.collection('history').orderBy('ts', 'desc').limit(20).onSnapshot(snap => {
+            const list = document.getElementById('history-list'); list.innerHTML = '';
+            snap.forEach(d => {
+                const val = d.data();
+                const date = val.ts ? val.ts.toDate().toLocaleDateString('hu-HU', {month:'short', day:'numeric'}) : '';
+                list.innerHTML += `<div style="padding:10px; border-bottom:1px solid #eee; font-size:0.9rem;"><span style="font-weight:bold;">${val.task}</span> <span style="color:#888; font-size:0.8rem;">- ${date}</span><br><span style="color:var(--accent); font-weight:bold;">✔ ${val.user}</span></div>`;
+            });
+        });
+    }
+
+    function setupDailyListener() {
+        if (unsubscribeDaily) unsubscribeDaily();
+        const famRef = db.collection('families').doc(state.famId);
+        
+        // Napi lista figyelése
+        unsubscribeDaily = famRef.collection('daily').doc(state.todayStr).onSnapshot(doc => {
+            if(doc.exists) { 
+                state.daily = doc.data().items || []; 
+                localStorage.setItem(CACHE_DAILY, JSON.stringify(state.daily)); // Cache update
+                renderToday(); 
+            } else { 
+                // Ha üres a szerveren, próbáljunk generálni
+                state.daily = [];
+                renderToday();
+                checkAndGenerateDaily(); 
+            }
+        });
+    }
+
+    // --- 4. GENERÁLÁS & OPTIMISTA FRISSÍTÉS ---
+    // Ez a függvény dönti el, hogy egy feladatnak (task) ott kell-e lennie a mai napon
+    function isTaskDueToday(t, checkDate) {
+        const dayOfWeek = checkDate.getDay(); 
+        const dateNum = checkDate.getDate();
+        
+        if (t.freqType === 'every_day') return true;
+        
+        if (t.freqType === 'weekly_days') {
+            return (t.days && t.days.includes(dayOfWeek));
+        } 
+        
+        if (t.freqType === 'interval_week') {
+            const start = new Date(t.startDate); start.setHours(0,0,0,0);
+            const oneDay = 24 * 60 * 60 * 1000;
+            const diffDays = Math.round((checkDate - start) / oneDay);
+            return (diffDays >= 0 && diffDays % (t.interval * 7) === 0);
+        }
+
+        if (t.freqType === 'monthly_fix') {
+            return (dateNum == t.monthDay);
+        }
+
+        if (t.freqType === 'interval_month') {
+            const start = new Date(t.startDate); start.setHours(0,0,0,0);
+            if (dateNum === start.getDate()) {
+                let months = (checkDate.getFullYear() - start.getFullYear()) * 12;
+                months -= start.getMonth();
+                months += checkDate.getMonth();
+                return (months >= 0 && months % t.interval === 0);
+            }
+            return false;
+        }
+
+        if (t.freqType === 'monthly_pattern') {
+            if (dayOfWeek == t.posDay) {
+                const weekNum = Math.ceil(dateNum / 7);
+                if (weekNum == t.posNum) return true;
+                if (t.posNum == -1) {
+                    const daysInMonth = new Date(checkDate.getFullYear(), checkDate.getMonth()+1, 0).getDate();
+                    if (dateNum + 7 > daysInMonth) return true;
+                }
+            }
+            return false;
+        }
+        return false;
+    }
+
+    async function checkAndGenerateDaily(forceNotify = false) {
+        if(state.tasks.length === 0) return;
+        
+        const ref = db.collection('families').doc(state.famId).collection('daily').doc(state.todayStr);
+        const checkDate = new Date(state.currentDateObj); checkDate.setHours(0,0,0,0);
+
+        try {
+            const doc = await ref.get();
+            let currentItems = doc.exists ? (doc.data().items || []) : [];
+            let itemsChanged = false;
+
+            state.tasks.forEach(t => {
+                const alreadyExists = currentItems.some(item => item.taskId === t.id);
+                if (alreadyExists) return;
+
+                if (isTaskDueToday(t, checkDate)) {
+                    currentItems.push({
+                        taskId: t.id, name: t.name, cat: t.cat || 'Egyéb',
+                        status: 'todo', desc: describeFreq(t), plannedBy: null, plannedTime: null
+                    });
+                    itemsChanged = true;
+                }
+            });
+
+            if (itemsChanged) {
+                // Ha változott, írjuk a DB-be. A Listener majd frissíti a UI-t és a Cache-t.
+                await ref.set({ items: currentItems }, { merge: true });
+                if(forceNotify) alert("Lista frissítve!");
+            } else if (forceNotify) {
+                alert("Nincs új feladat mára.");
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    // --- 5. ÚJ FELADAT + OPTIMISTA UI ---
+    function addNewTask() {
+        const name = document.getElementById('new-name').value;
+        const cat = document.getElementById('new-cat').value.trim();
+        const type = document.getElementById('freq-type').value;
+        
+        if(!name) return alert("Név kötelező!");
+
+        let taskObj = { 
+            name, cat, freqType: type,
+            created: new Date().toISOString(),
+            startDate: new Date().toISOString()
+        };
+
+        // Adatgyűjtés (rövidítve)
+        if (type === 'weekly_days') {
+            let days = [];
+            document.querySelectorAll('#opt-weekly-days .day-btn.selected').forEach(el => {
+                const txt = el.innerText;
+                if(txt=='V') days.push(0); if(txt=='H') days.push(1); if(txt=='K') days.push(2);
+                if(txt=='Sz') days.push(3); if(txt=='Cs') days.push(4); if(txt=='P') days.push(5); if(txt=='Szo') days.push(6);
+            });
+            if(days.length === 0) return alert("Válassz napot!");
+            taskObj.days = days;
+        } 
+        else if (type === 'interval_week') taskObj.interval = parseInt(document.getElementById('interval-week-num').value);
+        else if (type === 'monthly_fix') taskObj.monthDay = parseInt(document.getElementById('month-day-fix').value);
+        else if (type === 'interval_month') taskObj.interval = parseInt(document.getElementById('interval-month-num').value);
+        else if (type === 'monthly_pattern') {
+            taskObj.posNum = parseInt(document.getElementById('month-pos-num').value);
+            taskObj.posDay = parseInt(document.getElementById('month-pos-day').value);
+        }
+
+        // Kategória
+        if(cat && !state.categories.includes(cat)) {
+            const newCats = [...state.categories, cat].sort();
+            db.collection('families').doc(state.famId).collection('meta').doc('settings').update({ categories: newCats });
+        }
+
+        // 1. OPTIMISTA UI FRISSÍTÉS (Helyi Task Lista)
+        // Generálunk egy ideiglenes ID-t, hogy megjelenhessen a listában
+        const tempId = "temp_" + Date.now();
+        const taskWithTempId = { ...taskObj, id: tempId };
+        
+        state.tasks.push(taskWithTempId);
+        localStorage.setItem(CACHE_TASKS, JSON.stringify(state.tasks));
+        renderManageList();
+
+        // 2. OPTIMISTA UI FRISSÍTÉS (Napi Lista, ha mára esik)
+        const checkDate = new Date(state.currentDateObj); checkDate.setHours(0,0,0,0);
+        if (isTaskDueToday(taskWithTempId, checkDate)) {
+             state.daily.push({
+                taskId: tempId, name: taskObj.name, cat: taskObj.cat || 'Egyéb',
+                status: 'todo', desc: describeFreq(taskObj)
+            });
+            localStorage.setItem(CACHE_DAILY, JSON.stringify(state.daily));
+            renderToday();
+        }
+
+        // 3. KÜLDÉS SZERVERRE
+        // Először a definíciót adjuk hozzá
+        db.collection('families').doc(state.famId).collection('tasks').add(taskObj).then((docRef) => {
+            // Sikerült menteni a definíciót. Most frissíteni kell a napi dokumentumot is a szerveren, 
+            // hogy a többiek is lássák (Smart Update).
+            // A listener majd felülírja a "temp_" ID-s helyi adatot a valódival.
+            checkAndGenerateDaily(); 
+            
+            alert("Siker! (Háttérben szinkronizálva)");
+            document.getElementById('new-name').value = '';
+            document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
+        });
+    }
+
+    // --- UI RENDERERS ---
+    function describeFreq(t) {
+        if(t.freqType === 'every_day') return 'Minden nap';
+        if(t.freqType === 'interval_week') return `Minden ${t.interval}. héten`;
+        if(t.freqType === 'interval_month') return `Minden ${t.interval}. hónapban`;
+        if(t.freqType === 'monthly_fix') return `📅 Havi ${t.monthDay}. napján`;
+        if(t.freqType === 'monthly_pattern') return `📅 Havi ismétlődő`;
+        return '';
+    }
+
+    function renderToday() {
+        const list = document.getElementById('task-list'); list.innerHTML = '';
+        let done = 0, totalRelevant = 0; 
+        state.daily.forEach((item, idx) => {
+            if (item.status !== 'skipped') { totalRelevant++; if (item.status === 'done') done++; }
+            let statusClass = item.status === 'done' ? 'status-done' : (item.status === 'skipped' ? 'status-skipped' : (item.plannedBy ? 'status-planned' : 'status-todo'));
+            let planInfo = item.plannedBy ? `<div class="plan-info">✋ ${item.plannedBy} (${item.plannedTime})</div>` : '';
+            
+            let btns = '';
+            if (item.status === 'done') btns = `<div style="margin-top:10px; color:var(--accent); font-weight:bold;">✅ Kész: ${item.doneBy}</div>`;
+            else if (item.status === 'skipped') btns = `<div style="margin-top:10px; color:#aaa;">🚫 Kihagyva <button onclick="resetTask(${idx})" style="background:none; border:none; color:var(--main); text-decoration:underline;">Vissza</button></div>`;
+            else btns = `<div class="btn-row"><button class="btn-skip" onclick="skipTask(${idx})">🚫</button><button class="btn-plan" onclick="planTask(${idx})">${item.plannedBy?'Módosít':'✋'}</button><button class="btn-done" onclick="finishTask(${idx})">✔</button></div>`;
+            
+            list.innerHTML += `<div class="card ${statusClass}"><div class="task-header"><div><div class="task-cat">${item.cat}</div><div class="task-name">${item.name}</div><div class="task-detail">${item.desc || ''}</div></div></div>${planInfo}${btns}</div>`;
+        });
+        document.getElementById('daily-progress').style.width = (totalRelevant > 0 ? (done / totalRelevant) * 100 : 0) + "%";
+        document.getElementById('empty-msg').style.display = (state.daily.length > 0 && state.daily.every(i => i.status === 'done' || i.status === 'skipped')) ? 'block' : 'none';
+        document.getElementById('stat-total').innerText = totalRelevant;
+        document.getElementById('stat-done').innerText = done;
+    }
+
+    // ACTIONS
+    function planTask(idx) {
+        const t = prompt("Mikorra?", "De."); if(!t) return;
+        state.daily[idx].plannedBy = state.user; state.daily[idx].plannedTime = t;
+        saveDaily(); // UI + Cache + Server update
+    }
+    function finishTask(idx) {
+        state.daily[idx].status = 'done'; state.daily[idx].doneBy = state.user;
+        saveDaily();
+        db.collection('families').doc(state.famId).collection('history').add({ task: state.daily[idx].name, user: state.user, ts: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+    function skipTask(idx) {
+        if(confirm("Kihagyod?")) { state.daily[idx].status = 'skipped'; saveDaily(); }
+    }
+    function resetTask(idx) { state.daily[idx].status = 'todo'; saveDaily(); }
+
+    function saveDaily() { 
+        // 1. Local Cache Update (Azonnali)
+        localStorage.setItem(CACHE_DAILY, JSON.stringify(state.daily));
+        renderToday();
+        // 2. Server Update
+        db.collection('families').doc(state.famId).collection('daily').doc(state.todayStr).update({ items: state.daily }); 
+    }
+
+    // RENDER HELPERS
+    function renderFreqOptions() {
+        const type = document.getElementById('freq-type').value;
+        ['opt-weekly-days','opt-interval-week','opt-monthly-fix','opt-interval-month','opt-monthly-pattern'].forEach(id => document.getElementById(id).style.display = 'none');
+        if(type === 'weekly_days') document.getElementById('opt-weekly-days').style.display = 'block';
+        if(type === 'interval_week') document.getElementById('opt-interval-week').style.display = 'block';
+        if(type === 'monthly_fix') document.getElementById('opt-monthly-fix').style.display = 'block';
+        if(type === 'interval_month') document.getElementById('opt-interval-month').style.display = 'block';
+        if(type === 'monthly_pattern') document.getElementById('opt-monthly-pattern').style.display = 'block';
+    }
+    function toggleDay(el) { el.classList.toggle('selected'); }
+    function renderCategoryChips() { const c = document.getElementById('cat-chips'); c.innerHTML = ''; state.categories.forEach(cat => c.innerHTML += `<div class="chip" onclick="document.getElementById('new-cat').value='${cat}'">${cat} <span class="chip-del" onclick="deleteCat('${cat}', event)">✖</span></div>`); }
+    function deleteCat(cat, e) { e.stopPropagation(); if(confirm("Törlöd?")) { const newCats = state.categories.filter(c => c !== cat); db.collection('families').doc(state.famId).collection('meta').doc('settings').update({ categories: newCats }); } }
+    function renderManageList() {
+        const div = document.getElementById('manage-list'); div.innerHTML = '';
+        state.tasks.forEach(t => {
+            div.innerHTML += `<div class="card" style="display:flex; justify-content:space-between; align-items:center;"><div><div class="task-name">${t.name}</div><div class="task-detail">${describeFreq(t)}</div></div><button class="btn-danger" style="flex:0; padding:5px 12px;" onclick="if(confirm('Törlöd?')) db.collection('families').doc(state.famId).collection('tasks').doc('${t.id}').delete()">🗑️</button></div>`;
+        });
+    }
+
+    window.switchTab = function(id, el) {
+        document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active')); document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active')); el.classList.add('active');
+    }
+</script>
+</body>
+</html>
