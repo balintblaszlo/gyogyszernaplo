@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Családi Napló</title>
+    <title>Családi Napló v3.0</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
     <style>
-        :root { --main: #4a90e2; --accent: #50e3c2; --bg: #f5f7fa; --danger: #ff6b6b; --warn: #f8e71c; --text: #333; --grey: #b0b0b0; }
+        /* ÚJ SZÍNEK HOGY LÁSD A VÁLTOZÁST */
+        :root { --main: #d32f2f; /* PIROS - Hogy lásd ez az új! */ --accent: #50e3c2; --bg: #f5f7fa; --danger: #ff6b6b; --warn: #f8e71c; --text: #333; --grey: #b0b0b0; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: var(--bg); color: var(--text); padding-bottom: 80px; user-select: none; }
         
         /* LOGIN */
@@ -18,13 +19,13 @@
         .login-box input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
         
         /* HEADER */
-        header { background: white; padding: 10px 15px; position: sticky; top:0; z-index:100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        header { background: white; padding: 10px 15px; position: sticky; top:0; z-index:100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--main); }
         .header-left { display: flex; flex-direction: column; }
         h1 { margin: 0; font-size: 1.2rem; color: var(--main); line-height: 1.2; }
         .fam-code-display { font-size: 0.75rem; color: #888; margin-top: 2px; }
         .user-badge { background: var(--main); color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
 
-        /* TABOK & CONTAINER */
+        /* TABOK */
         .container { padding: 15px; max-width: 600px; margin: 0 auto; }
         .tab-content { display: none; animation: fadein 0.3s; }
         .tab-content.active { display: block; }
@@ -51,25 +52,25 @@
         .btn-skip { background: #fff; border: 1px solid #ddd; color: #aaa; flex: 0.5; font-size: 1.2rem; padding: 0; display: flex; align-items: center; justify-content: center;}
         .btn-primary { background: var(--main); width: 100%; }
         .btn-danger { background: var(--danger); }
-        .btn-reset { background: #333; color: white; border: 1px solid #000; margin-top: 10px; }
+        .btn-reset { background: #333; color: white; border: 2px solid red; margin-top: 10px; width: 100%; }
         
         select, input[type="number"], input[type="text"] { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; background: white; }
         
         .week-selector { display: flex; justify-content: space-between; gap: 4px; margin-bottom: 15px; }
         .day-btn { padding: 8px 0; flex: 1; text-align: center; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; color: #333; }
         .day-btn.selected { background: var(--main); color: white; border-color: var(--main); }
-        
-        /* Dátum Nav */
+
         .date-nav { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 15px; color: #666; }
         .nav-arrow { background: none; border: 1px solid #ddd; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-
-        /* INFO & CHIPS */
-        .info-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .stat-bar { height: 20px; background: #eee; border-radius: 10px; overflow: hidden; margin: 20px 0; display: flex; }
+        .stat-fill { height: 100%; background: var(--accent); transition: width 0.5s; }
+        
         .chip-container { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; margin-bottom: 15px; }
         .chip { background: #eee; padding: 6px 12px; border-radius: 15px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
         .chip-del { font-size: 0.8rem; opacity: 0.6; padding: 0 4px; }
-        .stat-bar { height: 20px; background: #eee; border-radius: 10px; overflow: hidden; margin: 20px 0; display: flex; }
-        .stat-fill { height: 100%; background: var(--accent); transition: width 0.5s; }
+        
+        .alert-text { background: #ffeeba; border: 1px solid #ffc107; padding: 10px; border-radius: 5px; color: #333; }
+        .info-section { border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
 
         /* NAVBAR */
         nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; height: 70px; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
@@ -84,17 +85,17 @@
 
 <div id="login-screen">
     <div class="login-box">
-        <h2 style="color:var(--main); margin-top:0;">🏠 Családi Napló</h2>
-        <input type="text" id="family-code" placeholder="Család Kódja (pl. Kovacsék)">
-        <input type="text" id="user-name" placeholder="Te Neved (pl. Apa)">
-        <button class="btn-primary" onclick="login()">Belépés</button>
+        <h2 style="color:var(--main); margin-top:0;">🏠 Családi Napló v3.0</h2>
+        <input type="text" id="family-code" placeholder="Család Kódja">
+        <input type="text" id="user-name" placeholder="Te Neved">
+        <button class="btn-primary" onclick="login()">Belépés (v3.0)</button>
     </div>
 </div>
 
 <div id="app" style="display:none;">
     <header>
         <div class="header-left">
-            <h1>Családi Napló</h1>
+            <h1>Családi Napló <span style="font-size:0.8rem; background:black; color:white; padding:2px 5px; border-radius:5px;">v3.0</span></h1>
             <div class="fam-code-display">Kód: <strong id="display-fam-id"></strong></div>
         </div>
         <div class="user-badge" id="display-user"></div>
@@ -136,7 +137,7 @@
 
         <div id="tab-settings" class="tab-content">
             <div class="card">
-                <h3 style="margin-top:0;">➕ Új feladat definiálása</h3>
+                <h3 style="margin-top:0;">➕ Új feladat</h3>
                 
                 <label>Feladat Neve</label>
                 <input type="text" id="new-name" placeholder="pl. Gázóra diktálás">
@@ -172,9 +173,9 @@
             </div>
             
             <h3>Adatkezelés</h3>
-            <div class="card" style="border-left-color: #333;">
-                <p style="font-size:0.9rem; margin-top:0;">Ha nem jelennek meg az új feladatok, használd ezt a gombot. Ez törli a telefonos gyorsítótárat és mindent újratölt a szerverről.</p>
-                <button class="btn-reset" onclick="hardReset()">⚠️ ADATOK TÖRLÉSE ÉS FRISSÍTÉS (RESET)</button>
+            <div class="card">
+                <p>Ha hibát észlelsz, vagy nem látod az új feladatokat, nyomd meg ezt:</p>
+                <button class="btn-reset" onclick="hardReset()">⚠️ ADATOK TÖRLÉSE ÉS RESET</button>
             </div>
 
             <h3>Mentett Feladatok</h3>
@@ -191,12 +192,17 @@
                 
                 <div class="info-section">
                     <div class="alert-text">
-                        🛠️ Verzió: 2.2 (Stabil Szinkron)<br>
-                        Ez az alkalmazás helyben (a telefonon) tárolja az adatokat a gyorsaság érdekében, és a háttérben szinkronizál.
+                        <b>Verzió: 3.0 (Tiszta Telepítés)</b><br>
+                        Ez az alkalmazás most már teljesen új adattárolást használ (v3), hogy elkerülje az összeakadást a régi verziókkal.
                     </div>
                 </div>
 
-                <button class="btn-reset" style="width:100%" onclick="hardReset()">⚠️ TELJES ÚJRAINDÍTÁS (RESET)</button>
+                <div class="info-section">
+                    <h4>Hogyan működik a gyorsítótár?</h4>
+                    <p>Az app először a telefonodról olvassa be az adatokat, hogy gyors legyen. Ha valami nem jelenik meg, használd a lenti gombot.</p>
+                </div>
+
+                <button class="btn-reset" onclick="hardReset()">⚠️ TELJES ÚJRAINDÍTÁS (RESET)</button>
                 <div style="text-align:center; color:#aaa; font-size:0.8rem; margin-top:20px;">Családi Napló App © 2025</div>
             </div>
         </div>
@@ -223,9 +229,9 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Cache kulcsok
-    const CACHE_TASKS = 'fam_tasks_cache';
-    const CACHE_DAILY = 'fam_daily_cache';
+    // ÚJ CACHE KULCSOK - Hogy biztosan ne a régit töltse be!
+    const CACHE_TASKS = 'fam_tasks_v3';
+    const CACHE_DAILY = 'fam_daily_v3';
 
     let state = {
         famId: localStorage.getItem('famId') || '',
@@ -260,8 +266,7 @@
     
     // --- ÚJ RESET FUNKCIÓ ---
     function hardReset() {
-        if(confirm("Ez törli a telefonon tárolt átmeneti adatokat és mindent újra letölt a szerverről. Biztosan folytatod?")) {
-            // Megtartjuk a login adatokat, de töröljük a cache-t
+        if(confirm("Ez törli a telefonos gyorsítótárat és újratölt mindent a szerverről. Mehet?")) {
             localStorage.removeItem(CACHE_TASKS);
             localStorage.removeItem(CACHE_DAILY);
             location.reload();
@@ -276,11 +281,8 @@
         document.getElementById('display-fam-id').innerText = state.famId;
         
         updateDateDisplay();
-        
-        // AZONNALI RENDER CACHE-BŐL
         renderManageList();
         renderToday();
-        
         setupListeners();
         renderFreqOptions();
     }
@@ -346,11 +348,9 @@
         });
     }
 
-    // --- 4. GENERÁLÁS & DÁTUM ELLENŐRZÉS ---
+    // --- 4. GENERÁLÁS LOGIKA ---
     function isTaskDueToday(t, checkDate) {
-        // Dátum normalizálása éjfélre a pontos számításhoz
         checkDate.setHours(0,0,0,0);
-        
         const dayOfWeek = checkDate.getDay(); 
         const dateNum = checkDate.getDate();
         
@@ -362,10 +362,9 @@
         
         if (t.freqType === 'interval_week') {
             const start = new Date(t.startDate); 
-            start.setHours(0,0,0,0); // Kezdő dátumot is éjfélre húzzuk
+            start.setHours(0,0,0,0);
             const oneDay = 24 * 60 * 60 * 1000;
             const diffDays = Math.round((checkDate - start) / oneDay);
-            // Ha a mai nap a kezdőnap, vagy eltelt pontosan X hét
             return (diffDays >= 0 && diffDays % (t.interval * 7) === 0);
         }
 
@@ -425,9 +424,9 @@
 
             if (itemsChanged) {
                 await ref.set({ items: currentItems }, { merge: true });
-                if(forceNotify) alert("Lista frissítve!");
+                if(forceNotify) alert("Szerver szinkronizálva!");
             } else if (forceNotify) {
-                alert("Nincs új feladat mára.");
+                alert("Nincs új feladat a szerveren.");
             }
         } catch(e) { console.error(e); }
     }
@@ -440,9 +439,7 @@
         
         if(!name) return alert("Név kötelező!");
 
-        // FONTOS: Kezdő dátum beállítása MAI napra, hogy azonnal megjelenjen
         const todayISO = new Date().toISOString();
-
         let taskObj = { 
             name, cat, freqType: type,
             created: todayISO,
@@ -472,7 +469,7 @@
             db.collection('families').doc(state.famId).collection('meta').doc('settings').update({ categories: newCats });
         }
 
-        // 1. HELYI TASK LISTA FRISSÍTÉS (OPTIMISTA)
+        // OPTIMISTA UI: Helyi listába azonnal betesszük
         const tempId = "temp_" + Date.now();
         const taskWithTempId = { ...taskObj, id: tempId };
         
@@ -480,7 +477,7 @@
         localStorage.setItem(CACHE_TASKS, JSON.stringify(state.tasks));
         renderManageList();
 
-        // 2. NAPI LISTA FRISSÍTÉS (HA KELL)
+        // Ha mára esedékes, a napi listába is
         const checkDate = new Date(state.currentDateObj); checkDate.setHours(0,0,0,0);
         if (isTaskDueToday(taskWithTempId, checkDate)) {
              state.daily.push({
@@ -491,11 +488,10 @@
             renderToday();
         }
 
-        // 3. SZERVER MENTÉS
+        // KÜLDÉS SZERVERRE
         db.collection('families').doc(state.famId).collection('tasks').add(taskObj).then((docRef) => {
-            // Ha sikerült, a szerveren lévő napi listát is frissítjük, hogy a többiek lássák
             checkAndGenerateDaily(); 
-            alert("Siker! (Háttérben szinkronizálva)");
+            alert("Rögzítve!");
             document.getElementById('new-name').value = '';
             document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
         });
@@ -549,10 +545,8 @@
     function resetTask(idx) { state.daily[idx].status = 'todo'; saveDaily(); }
 
     function saveDaily() { 
-        // 1. Cache
         localStorage.setItem(CACHE_DAILY, JSON.stringify(state.daily));
         renderToday();
-        // 2. Server
         db.collection('families').doc(state.famId).collection('daily').doc(state.todayStr).update({ items: state.daily }); 
     }
 
